@@ -30,8 +30,6 @@ import rioxarray
 import xarray as xr
 
  
-import sparse
-
 
 from definitions import epsg_id, lib_dir
 
@@ -89,7 +87,9 @@ def load_asc_concat_all(
         lookup_fp=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\ManningsFor32m.txt',
         meta_pick_fp=None,
         client=None,
-        encoding = {'zlib': True, 'complevel': 5, 'dtype': 'float32', 'least_significant_digit':2},
+        encoding = {
+            #'zlib': True, 'complevel': 5, 
+            'dtype': 'float32', 'least_significant_digit':2},
         ):
     
     """load a set of asc results files and use to populate a sparase data array
@@ -207,16 +207,19 @@ def load_asc_concat_all(
         #===========================================================================
         # concat the tag  
         #===========================================================================
-        da_dtag[gval] = xr.concat(da_d.values(), dim='MannningsValue', combine_attrs='drop_conflicts')
+        da_dtag[gval] = xr.concat(da_d.values(), dim='MannningsValue', combine_attrs='drop')
         
     #===========================================================================
     # concat all
     #===========================================================================
     log.info(f'concat on {len(da_dtag)} tags')
-    da_m = xr.concat(da_dtag.values(), dim='tag', combine_attrs='drop_conflicts')
+    da_m = xr.concat(da_dtag.values(), dim='tag', combine_attrs='drop')
     
     #set compression
     da_m.encoding.update(encoding)
+    
+    #fill nulls
+    da_m = da_m.where(da_m!=0)
     #===========================================================================
     # write
     #===========================================================================
@@ -266,7 +269,7 @@ if __name__=="__main__":
         
         
             search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\032m\raw',
-            meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
+            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
  
             count_file_limiter=None,
             )

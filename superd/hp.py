@@ -168,7 +168,10 @@ def get_filepaths(search_dir, ext='.nc', count=None):
     
     if not count is None:
         assert len(find_l)==count,f'failed to get uinique match {len(find_l)} from \n    {search_dir}'
-        return find_l[count:]
+        if count ==1:
+            return find_l[0]
+        else:
+            raise NotImplementedError(count)
     else:
         return find_l
 

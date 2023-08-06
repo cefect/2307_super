@@ -16,6 +16,7 @@ dependencies:
   - dask=2023.7.*
   - netCDF4
   - flox
+  - seaborn
   - pip
   - pip:
     - graphviz
