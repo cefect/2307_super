@@ -8,7 +8,9 @@ import os, logging, pprint, webbrowser, sys
 import logging.config
 from datetime import datetime
 import pandas as pd
-from definitions import wrk_dir, logcfg_file
+
+from osgeo import gdal # Import gdal before rasterio
+import rasterio as rio
 
 from dask.distributed import LocalCluster as Cluster
 from dask.distributed import Client
@@ -17,6 +19,8 @@ import dask
 from dask.diagnostics import ProgressBar
 
 import xarray as xr
+
+from definitions import wrk_dir, logcfg_file
 
 #===============================================================================
 # logging
@@ -234,7 +238,35 @@ def _wrap_rprof(rprof):
     # print the maximum values
     print(f"total_time={total_time:.2f} secs, max_mem={max_mem:.2f} MB, max_cpu={max_cpu:.1f} %")
     
+#===============================================================================
+# RASTERIO---------
+#===============================================================================
+def is_raster_file(filepath):
+    """probably some more sophisticated way to do this... but I always use tifs"""
+    assert isinstance(filepath, str)
+    _, ext = os.path.splitext(filepath)
+    return ext in ['.tif', '.asc']
+
+def rlay_apply(rlay, func, **kwargs):
+    """flexible apply a function to either a filepath or a rio ds"""
     
+    assert not rlay is None 
+    assert is_raster_file(rlay)
+     
+    with rio.open(rlay, mode='r') as ds:
+        return func(ds, **kwargs)
+ 
+
+def get_meta(rlay, **kwargs):
+    return rlay_apply(rlay, lambda x:_get_meta(x, **kwargs))
+
+
+def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
+    d = dict()
+    for attn in att_l:        
+        d[attn] = getattr(ds, attn)
+    return d
+
 #===============================================================================
 # SPARSE------
 #===============================================================================
