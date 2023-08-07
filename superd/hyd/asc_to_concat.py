@@ -459,6 +459,86 @@ def load_fine_asc_concat_all(
     log.info(meta_d)
      
     return ofp
+
+
+def clip_dataArray(fp, 
+                   new_shape,
+                   scenario='fine',
+                   out_dir=None,
+                   ):
+    """clip a data array
+    
+    doing this when the shapes are not evenly divisible"""
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    start = datetime.now() 
+    if out_dir is None:
+        out_dir=os.path.join(lib_dir, '02_clip')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    
+    log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='perf')
+    
+    log.info(f'clipping to {new_shape} on \n    {fp}')
+    
+    #===========================================================================
+    # open and clip
+    #===========================================================================
+    with xr.open_dataarray(fp, engine='netcdf4', mask_and_scale=True, 
+        chunks='auto') as da:
+        
+        log.info(f'loaded {scenario} with {da.shape} w/ \n    {da.dims}\n    {da.chunks}')
+        
+        #build indexer
+        if scenario=='fine':
+            #=======================================================================
+            # da_i_x = xr.DataArray(da.coords['x'].values[:new_shape[1]], dims=["x"])
+            # da_i_y = xr.DataArray(da.coords['y'].values[:new_shape[2]], dims=["y"])
+            #=======================================================================
+            da_i_x = xr.DataArray(np.arange(new_shape[1]), dims=["x"])
+            da_i_y = xr.DataArray(np.arange(new_shape[2]), dims=["y"])
+            
+            #make slice
+            da_s = da[:, da_i_x, da_i_y]
+            
+        else:
+            da_i_x = xr.DataArray(np.arange(new_shape[2]), dims=["x"])
+            da_i_y = xr.DataArray(np.arange(new_shape[3]), dims=["y"])
+            
+            #make slice
+            da_s = da[:, :, da_i_x, da_i_y]
+        
+        assert da_s.shape==new_shape
+        
+        #===========================================================================
+        # write
+        #===========================================================================
+        shape_str = '-'.join([str(e) for e in da_s.shape])
+        ofp = os.path.join(out_dir, f'concat_clip_{scenario}_{shape_str}_{today_str}.nc')
+         
+        log.info(f'to_netcdf')
+        #with Lock("rio", client=client) as lock:
+        da_s.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
+         
+        log.info(f'merged all w/ {da_s.shape} and wrote to \n    {ofp}')
+         
+      
+        #===========================================================================
+        # wrap
+        #===========================================================================
+        meta_d = {
+                        'tdelta':(datetime.now()-start).total_seconds(),
+                        'RAM_GB':psutil.virtual_memory () [3]/1000000000,
+                        #'disk_GB':get_directory_size(temp_dir),
+                        'output_MB':os.path.getsize(ofp)/(1024**2)
+                        }
+        log.info(meta_d)
+         
+        return ofp
+        
+    
      
          
 
@@ -466,6 +546,11 @@ def load_fine_asc_concat_all(
  
     
 if __name__=="__main__":
+    
+
+    
+ 
+    
     #===========================================================================
     # coarse
     #===========================================================================
@@ -494,21 +579,25 @@ if __name__=="__main__":
     # fine
     #===========================================================================
     
-    kwargs = dict(        
- 
-            search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\004m\raw',
- 
-            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
- 
- 
-            processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
-            )
-    
-    dask_run_cluster(load_fine_asc_concat_all, **kwargs)
+ #==============================================================================
+ #    kwargs = dict(        
+ # 
+ #            search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\004m\raw',
+ # 
+ #            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
+ # 
+ # 
+ #            processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
+ #            )
+ #    
+ #    dask_run_cluster(load_fine_asc_concat_all, **kwargs)
+ #==============================================================================
         
-        
-
-
+    #===========================================================================
+    # clip
+    #===========================================================================
+    #clip_dataArray(r'l:\10_IO\2307_super\lib\01_concatF\concat_fine_5-1688-5230_20230807.nc', (5, 1688, 653*8), scenario='fine')
+    clip_dataArray(r'l:\10_IO\2307_super\lib\01_concat\concat_5-299-211-654_20230807.nc', (5, 299, 211, 653), scenario='coarse')
     
     
     
