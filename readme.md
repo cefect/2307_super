@@ -9,9 +9,15 @@ create a ./definitions.py file similar to that shown below
 
 add submodules
 
+add ./coms to PYTHONPATH
+
 ## submodules
 
+### flood grid performance
+2023-08-07: started incorporating this (trying to migrate off of coms) and gave up
 git submodule add -b 2307_super https://github.com/cefect/fperf
+
+ 
 
 
 
