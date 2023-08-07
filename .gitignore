@@ -143,3 +143,6 @@ dmypy.json
 
 #cef build files
 definitions.py
+
+#dask profiles
+*.html

@@ -5,6 +5,105 @@ Created on Aug. 6, 2023
 
 '''
 
+#===============================================================================
+# PLOT ENV------
+#===============================================================================
+
+#===============================================================================
+# setup matplotlib----------
+#===============================================================================
+env_type = 'draft'
+cm = 1 / 2.54
+
+if env_type == 'journal': 
+    usetex = True
+elif env_type == 'draft':
+    usetex = False
+elif env_type == 'present':
+    usetex = False
+else:
+    raise KeyError(env_type)
+
+ 
+ 
+  
+import matplotlib
+#matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+matplotlib.set_loglevel("info") #reduce logging level
+import matplotlib.pyplot as plt
+ 
+#set teh styles
+plt.style.use('default')
+
+def set_doc_style():
+ 
+    font_size=8
+    matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size'   : font_size})
+     
+    for k,v in {
+        'axes.titlesize':font_size,
+        'axes.labelsize':font_size,
+        'xtick.labelsize':font_size,
+        'ytick.labelsize':font_size,
+        'figure.titlesize':font_size+2,
+        'figure.autolayout':False,
+        'figure.figsize':(17.7*cm,18*cm),#typical full-page textsize for Copernicus (with 4cm for caption)
+        'legend.title_fontsize':'large',
+        'text.usetex':usetex,
+        }.items():
+            matplotlib.rcParams[k] = v
+
+#===============================================================================
+# journal style
+#===============================================================================
+if env_type=='journal':
+    set_doc_style() 
+ 
+    env_kwargs=dict(
+        output_format='pdf',add_stamp=False,add_subfigLabel=True,transparent=True
+        )            
+#===============================================================================
+# draft
+#===============================================================================
+elif env_type=='draft':
+    set_doc_style() 
+ 
+    env_kwargs=dict(
+        output_format='svg',add_stamp=True,add_subfigLabel=True,transparent=True
+        )          
+#===============================================================================
+# presentation style    
+#===============================================================================
+elif env_type=='present': 
+ 
+    env_kwargs=dict(
+        output_format='svg',add_stamp=True,add_subfigLabel=False,transparent=False
+        )   
+ 
+    font_size=12
+ 
+    matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
+     
+     
+    for k,v in {
+        'axes.titlesize':font_size+2,
+        'axes.labelsize':font_size+2,
+        'xtick.labelsize':font_size,
+        'ytick.labelsize':font_size,
+        'figure.titlesize':font_size+4,
+        'figure.autolayout':False,
+        'figure.figsize':(34*cm,19*cm), #GFZ template slide size
+        'legend.title_fontsize':'large',
+        'text.usetex':usetex,
+        }.items():
+            matplotlib.rcParams[k] = v
+  
+print('loaded matplotlib %s'%matplotlib.__version__)
+
+#===============================================================================
+# IMPORTS-------
+#===============================================================================
+
 import os, hashlib, logging, shutil, psutil, webbrowser
 from datetime import datetime
 
@@ -22,7 +121,8 @@ import xarray as xr
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from definitions import epsg_id, lib_dir, wrk_dir
+from definitions import lib_dir, wrk_dir
+from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
 from superd.hp import init_log, today_str, get_filepaths, dstr
 
@@ -106,12 +206,12 @@ def plot_stats_per_sim(
     #dxind['real_cnt'] = dxind['count']-dxind['null_cnt']
     
     #data = [dxind[k] for k in 
-    
+    res_d=dict()
     #===========================================================================
     # hexbin scatters
     #===========================================================================
  
-    sns.relplot(
+    ax = sns.relplot(
             data=dxind.stack().rename('vals').reset_index() ,
             x="MannningsValue",
             y="vals",
@@ -121,17 +221,22 @@ def plot_stats_per_sim(
             kind="line", 
             size_order=["T1", "T2"], 
              
-            height=5, aspect=.75, 
+            height=3, aspect=3,  
             facet_kws=dict(sharey=False),
+ 
         )
     
-    
+    #write
+    res_d['relplot'] = os.path.join(out_dir, f'stats_relplot_{len(dxind)}.svg')
+    ax.figure.savefig(res_d['relplot'], dpi = 300,   transparent=True)
+    log.info(f'wrote to \n    %s'%res_d['relplot'])
  
-            
+    plt.close('all')
+    return
     #===========================================================================
     # violin plots
     #===========================================================================
-    res_d=dict()
+    
     
     for varName in ['count', 'max', 'mean']:
         log.info(f'plotting {varName}')
@@ -166,6 +271,14 @@ def plot_stats_per_sim(
 if __name__=="__main__":
     
     plot_stats_per_sim(
-        stats_pick_fp=r'l:\10_IO\2307_super\stats_per_sim\20230806\stats_1495-4_20230806.pkl',
+        stats_pick_fp=r'l:\10_IO\2307_super\stats_per_sim\20230807\stats_1495-4_20230807.pkl',
         #nc_fp=r'l:\10_IO\2307_super\lib\01_concatb\meta_raw_1494.pkl'
         )
+    
+    
+    
+    
+    
+    
+    
+    
