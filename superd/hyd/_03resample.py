@@ -9,7 +9,9 @@ building resample of coarse array
 '''
 
 
-
+#===============================================================================
+# imports----------
+#===============================================================================
 import os, hashlib, logging, shutil, psutil, webbrowser, gc
 from datetime import datetime
 
@@ -34,9 +36,15 @@ from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
 from superd.hyd.coms import load_nc_to_xarray
 
-from superd.hp import init_log, today_str, get_filepaths, dstr, dask_run_cluster, dask_run_threads
+from superd.hp import init_log, today_str, get_filepaths, dstr, dask_run_cluster, dask_run_threads, get_directory_size
 
 
+from superd.hyd._01asc_to_concat import _get_asc_files
+
+
+#===============================================================================
+# funcs-----------
+#===============================================================================
     
 def write_coarse_resample(coarse_nc_fp, 
                           new_shape=(1688, 5224), 
@@ -157,30 +165,102 @@ def write_coarse_resample(coarse_nc_fp,
  #    #===========================================================================
  #    log.info(f'finished writing to {len(ofp_d)}\n    {dstr(ofp_d)}')
  #    
- #    with xr.open_mfdataset(list(ofp_d.values()), parallel=True,  
- #                           engine='netcdf4',
- #                           data_vars='minimal',
- #                           combine="nested",
- #                           concat_dim='tag',
- #                           decode_coords="all",
- #                           chunks={'x':-1, 'y':-1, 'tag':1, 'MannningsValue':1},
- #                       ) as ds:
- #    
- #        log.info(f'loaded {ds.dims}'+
- #             f'\n    coors: {list(ds.coords)}'+
- #             f'\n    data_vars: {list(ds.data_vars)}'+
- #             f'\n    crs:{ds.rio.crs}'
- #             )
- #        
- #        #add some meta
- #        ds = ds.assign_attrs({'resolution':4})
- # 
- #        shape_str = '-'.join([str(e) for e in ds['wd_max'].shape])
- #        ofp = os.path.join(out_dir, f'coarse_resamp_{shape_str}_{today_str}.nc')
- #        
- #        log.info(f'writing {shape_str} to \n    {ofp}')
- #        ds.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
+
  #==============================================================================
+        
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    meta_d = {
+                    'tdelta':(datetime.now()-start).total_seconds(),
+                    'RAM_GB':psutil.virtual_memory () [3]/1000000000,
+                    'disk_GB':get_directory_size(out_dir),
+                    #'output_MB':os.path.getsize(ofp)/(1024**2)
+                    }
+    log.info(meta_d)
+     
+    return ofp_d
+        
+ 
+def concat_fine_and_coarse(coarse_nc_dir=None,
+                           fine_nc_fp=None,
+                           out_dir=None,
+                           client=None,
+                           encoding = {'zlib': True, 'complevel': 5},
+ 
+                           ):
+    """compute performance stats for extent and value"""
+    
+    
+    #===========================================================================
+    # defautls
+    #===========================================================================
+ 
+        
+    start = datetime.now() 
+    if out_dir is None:
+        out_dir=os.path.join(wrk_dir, 'performance', today_str)
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    
+    log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='perf')
+    
+     
+    
+    #===========================================================================
+    # get filepaths
+    #===========================================================================
+    coares_fp_l = get_filepaths(coarse_nc_dir, ext='.nc')
+    
+    log.info(f'w/ {len(coares_fp_l)} coarse files and \n    fine:{fine_nc_fp}')
+    
+    #===========================================================================
+    # load the cooarse
+    #===========================================================================
+    
+    with xr.open_mfdataset(coares_fp_l, 
+                           #parallel=True,  
+                       engine='netcdf4',
+                       data_vars='minimal',
+                       combine="nested",
+                       concat_dim='tag',
+                       decode_coords="all",
+                       chunks={'x':-1, 'y':-1, 'tag':1, 'MannningsValue':1},
+                   ) as dsC:
+     
+        log.info(f'loaded {dsC.dims}'+
+             f'\n    coors: {list(dsC.coords)}'+
+             f'\n    data_vars: {list(dsC.data_vars)}'+
+             f'\n    crs:{dsC.rio.crs}'
+             )
+        
+        dsC = dsC.rename({'wd_max':'coarse'}).assign_attrs({'resolution':4})
+        #=======================================================================
+        # load fine
+        #=======================================================================
+        daF =  xr.open_dataarray(fine_nc_fp, engine='netcdf4', mask_and_scale=True, 
+            chunks={'x':-1, 'y':-1, 'tag':1}
+            ).rio.write_crs(f'EPSG:{epsg_id}')
+            
+        dsF = daF.rename('fine').assign_attrs({'resolution':4}).to_dataset()
+         
+        #=======================================================================
+        # #merge
+        #=======================================================================
+        dsM = xr.merge([dsC, dsF]).reset_encoding()
+        
+        dsM.encoding.update({k:encoding for k in dsM.data_vars})
+        
+        
+        #=======================================================================
+        # wrjite
+        #=======================================================================
+  
+        shape_str = '-'.join([str(e) for e in dsM['coarse'].shape])
+        ofp = os.path.join(out_dir, f'merge_resamp_{shape_str}_{today_str}.nc')
+         
+        log.info(f'writing {shape_str} to \n    {ofp}')
+        dsM.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
         
     #===========================================================================
     # wrap
@@ -192,25 +272,60 @@ def write_coarse_resample(coarse_nc_fp,
                     'output_MB':os.path.getsize(ofp)/(1024**2)
                     }
     log.info(meta_d)
-     
+    
     return ofp
-        
     
     
-
+ 
 
 if __name__=="__main__":
+    #===========================================================================
+    # coarse resample
+    #===========================================================================
  
-    kwargs = dict(
-            #fine_nc_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc',
-            coarse_nc_fp= r'l:\10_IO\2307_super\lib\02_clip\concat_clip_coarse_5-299-211-653_20230807.nc',
-            new_shape=(1688, 5224),      
- 
-            )
-    
-    write_coarse_resample(**kwargs)
+ #==============================================================================
+ #    kwargs = dict(
+ #            #fine_nc_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc',
+ #            coarse_nc_fp= r'l:\10_IO\2307_super\lib\02_clip\concat_clip_coarse_5-299-211-653_20230807.nc',
+ #            new_shape=(1688, 5224),      
+ # 
+ #            )
+ #    
+ #    write_coarse_resample(**kwargs)
+ #==============================================================================
     
     #dask_run_cluster(write_coarse_resample, **kwargs, processes=True, n_workers=8, threads_per_worker=1)
     
     #dask_run_threads(write_coarse_resample, **kwargs)
+    
+    
+    
+    #===========================================================================
+    # concat
+    #===========================================================================
+    kwargs = dict(
+        fine_nc_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc',
+        coarse_nc_dir=r'l:\10_IO\2307_super\lib\03_resample',
+        )
+    
+    #very slow
+    #dask_run_cluster(concat_fine_and_coarse, **kwargs, processes=True, n_workers=8, threads_per_worker=1)
+    
+    #even worse
+    #dask_run_cluster(concat_fine_and_coarse, **kwargs, processes=False, n_workers=1, threads_per_worker=14)
+    
+    #turn of chunking (memory error)
+    #
+    dask_run_cluster(concat_fine_and_coarse, **kwargs, processes=True, n_workers=8, threads_per_worker=2)
+    
+    #also verly slow
+    #dask_run_threads(concat_fine_and_coarse, **kwargs)
+ 
+    
+    
+    
+    
+    
+    
+    
     
