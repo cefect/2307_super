@@ -433,21 +433,7 @@ def load_fine_asc_concat_all(
     return ofp
     
         
-def run_with_dask(func, **kwargs):
-        #start a cluster and connect client
-    with LocalCluster( 
-                       #========================================================
-                       #  threads_per_worker=13, 
-                       n_workers=1,
-                       # memory_limit='auto', 
-                       # processes=False,
-                       #========================================================
-                       ) as cluster, Client(cluster) as client:
-        
-        print(f' opening dask client {client.dashboard_link}')
-        webbrowser.open(client.dashboard_link)
-    
-        return func(client=client, **kwargs)
+
 
  
     

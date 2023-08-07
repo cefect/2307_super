@@ -183,23 +183,24 @@ def get_filepaths(search_dir, ext='.nc', count=None):
  
 
 #===============================================================================
-# dask runners--------
+# DASK--------
 #===============================================================================
-def dask_profile_func(func, *args,
-                      threads_per_worker=16, n_workers=1,
-                      **kwargs):
-    
-    with Client(threads_per_worker=threads_per_worker, n_workers=n_workers,
-                 memory_limit='auto', processes=False,
-                 ) as client:
-          
+
+def dask_run_cluster(func, *args, n_workers=1,threads_per_worker=None, memory_limit='auto', **kwargs):
+        #start a cluster and connect client
+    with Cluster( 
+                      threads_per_worker=threads_per_worker, 
+                    n_workers=n_workers,
+                     memory_limit=memory_limit, 
+                     #processes=False,
+                       ) as cluster, Client(cluster) as client:
+        
         print(f' opening dask client {client.dashboard_link}')
         webbrowser.open(client.dashboard_link)
-          
+        
         with ResourceProfiler(dt=0.25) as rprof: 
             func(*args, **kwargs)
- 
-             
+    
         #profile results
         _wrap_rprof(rprof) 
 
@@ -213,6 +214,8 @@ def dask_profile_func(func, *args,
             )
         
     return rprof
+    
+ 
 
 def dask_threads_func(func, n_workers=None, **kwargs):
  
