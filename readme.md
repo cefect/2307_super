@@ -7,6 +7,11 @@ build conda environment from ./environment.yml
 
 create a ./definitions.py file similar to that shown below
 
+add submodules
+
+## submodules
+
+git submodule add -b 2307_super https://github.com/cefect/fperf
 
 
 

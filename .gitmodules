@@ -1,0 +1,4 @@
+[submodule "fperf"]
+	path = fperf
+	url = https://github.com/cefect/fperf
+	branch = 2307_super
