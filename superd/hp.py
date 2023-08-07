@@ -7,6 +7,8 @@ Created on Aug. 6, 2023
 import os, logging, pprint, webbrowser, sys
 import logging.config
 from datetime import datetime
+
+import numpy as np
 import pandas as pd
 
 from osgeo import gdal # Import gdal before rasterio
@@ -222,7 +224,7 @@ def dask_run_cluster(func, *args,
     
  
 
-def dask_threads_func(func, n_workers=None, **kwargs):
+def dask_run_threads(func, n_workers=None, **kwargs):
  
     
     pbar = ProgressBar(5.0, dt=1.0) #show progress bar for computatinos greater than 5 secs
@@ -276,70 +278,38 @@ def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
     return d
 
 #===============================================================================
-# SPARSE------
+# ERRORS--------
 #===============================================================================
-def dataArray_todense(da):
-    """convert a sparse dataArray to a dense one"""
-
-    return xr.DataArray(
-        da.data.todense(),
-        dims=da.dims, coords=da.coords
-        )
+def get_confusion_cat(true_arB, pred_arB, 
+                      confusion_codes={'TP':'TP', 'TN':'TN', 'FP':'FP', 'FN':'FN'},
+                      ):
+    """compute the confusion code for each element
     
-
-def write_sparse_xarray(
-        ds_sparse, ofp, log=None,sparse_datavar=None,sparse_index=None
-        ):
+    Parameters
+    -----------
+    confusion_codes: dict
+        optional mapping for naming the 4 confusion categories
     """
-    write an xarray Dataset with sparse data as two files
+    #start with dummy
+    res_ar = np.full(true_arB.shape, np.nan)
+    #true positives
+    res_ar = np.where(
+        np.logical_and(true_arB, pred_arB), 
+        confusion_codes['TP'], res_ar)
+    #true negatives
+    res_ar = np.where(
+        np.logical_and(np.invert(true_arB), np.invert(pred_arB)), 
+        confusion_codes['TN'], res_ar)
+    #false positives
+    res_ar = np.where(
+        np.logical_and(np.invert(true_arB), pred_arB), 
+        confusion_codes['FP'], res_ar)
+    #false negatives
+    res_ar = np.where(
+        np.logical_and(true_arB, np.invert(pred_arB)), 
+        confusion_codes['FN'], res_ar)
     
-    (some data, y, x)
-    """
-    #===========================================================================
-    # defaults
-    #===========================================================================
-    if log is None: log=logging.getLogger('write') 
-        
-    #ofp = ofp + '_' + '-'.join([str(abs(v)) for v in coo_ar.shape])
     
-    if sparse_datavar is None: sparse_datavar=ds_sparse.attrs['sparse_datavar']
-    
-    #get the shape of the data source
-    dm = ds_sparse.squeeze().dims
-   
-    
-    if sparse_index is None:
-        sparse_index = list(set(dm.keys()).difference(['x', 'y']))[0]
-    
- 
-
-    #dshape = [dm[sparse_index], dm['y'], dm['x']]
-    
-    #===========================================================================
-    # check
-    #===========================================================================
-    assert np.array_equal(
-            np.arange(0, len(ds_sparse.coords[sparse_index])),
-            ds_sparse.coords[sparse_index].values), f'got discontinous sparse index'
- 
-    
-    #===========================================================================
-    # write sparse
-    #===========================================================================
-    ofp1 = ofp+'.npz'
-    
-    sparse.save_npz(ofp1, ds_sparse[sparse_datavar].data, compressed=True)
-    
-    #===========================================================================
-    # write xarray
-    #===========================================================================
-    ds_empty = ds_sparse.drop(sparse_datavar) 
- 
-    ds_empty.assign_attrs({'sparse_filename':ofp1, 'sparse_datavar':sparse_datavar, 'sparse_index':sparse_index}
-                    ).to_netcdf(ofp+'.nc', mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
-    
-    log.info(f'wrote { ds_sparse[sparse_datavar].shape} to \n    {os.path.dirname(ofp)}')
-    
-    return ofp1
+    return res_ar 
 
 
