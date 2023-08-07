@@ -493,25 +493,29 @@ def clip_dataArray(fp,
         
         #build indexer
         if scenario=='fine':
+            assert da.dims==('tag','y', 'x')
             #=======================================================================
             # da_i_x = xr.DataArray(da.coords['x'].values[:new_shape[1]], dims=["x"])
             # da_i_y = xr.DataArray(da.coords['y'].values[:new_shape[2]], dims=["y"])
             #=======================================================================
-            da_i_x = xr.DataArray(np.arange(new_shape[1]), dims=["x"])
+            da_i_y = xr.DataArray(np.arange(new_shape[1]), dims=["y"])
+            da_i_x = xr.DataArray(np.arange(new_shape[2]), dims=["x"])
+            
+            
+            #make slice
+            da_s = da[:, da_i_y, da_i_x]
+            
+        else:
+            assert da.dims==('tag', 'MannningsValue', 'y', 'x')
+            da_i_x = xr.DataArray(np.arange(new_shape[3]), dims=["x"])
             da_i_y = xr.DataArray(np.arange(new_shape[2]), dims=["y"])
             
             #make slice
-            da_s = da[:, da_i_x, da_i_y]
-            
-        else:
-            da_i_x = xr.DataArray(np.arange(new_shape[2]), dims=["x"])
-            da_i_y = xr.DataArray(np.arange(new_shape[3]), dims=["y"])
-            
-            #make slice
-            da_s = da[:, :, da_i_x, da_i_y]
+            da_s = da[:, :,  da_i_y, da_i_x]
         
         assert da_s.shape==new_shape
         
+ 
         #===========================================================================
         # write
         #===========================================================================
@@ -596,8 +600,8 @@ if __name__=="__main__":
     #===========================================================================
     # clip
     #===========================================================================
-    #clip_dataArray(r'l:\10_IO\2307_super\lib\01_concatF\concat_fine_5-1688-5230_20230807.nc', (5, 1688, 653*8), scenario='fine')
-    clip_dataArray(r'l:\10_IO\2307_super\lib\01_concat\concat_5-299-211-654_20230807.nc', (5, 299, 211, 653), scenario='coarse')
+    clip_dataArray(r'l:\10_IO\2307_super\lib\01_concatF\concat_fine_5-1688-5230_20230807.nc', (5, 1688, 653*8), scenario='fine')
+    #clip_dataArray(r'l:\10_IO\2307_super\lib\01_concat\concat_5-299-211-654_20230807.nc', (5, 299, 211, 653), scenario='coarse')
     
     
     
