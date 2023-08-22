@@ -42,11 +42,13 @@ from superd.hp import (
 
  
 
-def calc_performance_stats(coarse_nc_dir=None,
+def write_confusion_stack(coarse_nc_dir=None,
                            coarse_fp_l=None,
                            fine_fp=None,
                            out_dir=None,
-                           pick_d=dict(),
+                             encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
+                          max_workers=5,
+ 
                            ):
     """compute performance stats for extent and value"""
     
@@ -55,10 +57,8 @@ def calc_performance_stats(coarse_nc_dir=None,
     # defautls
     #===========================================================================
  
-        
-    
     if out_dir is None:
-        out_dir=os.path.join(wrk_dir, 'performance', today_str)
+        out_dir=os.path.join(lib_dir, '04_confu')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     
@@ -112,12 +112,69 @@ def calc_performance_stats(coarse_nc_dir=None,
         for k in ['x', 'y', 'tag']:
             assert np.array_equal(da_coarse.coords[k].values, da_fine.coords[k].values), k
     
+
+     
         #===========================================================================
-        # CSI
+        # data prep
         #===========================================================================
-        if not 'confu' in pick_d:
-            write_confusion_stack(da_coarse,da_fine, log=log, baseTag='base')
+     
         
+        #convert to boolean
+        
+        da_coarseB = xr.where(da_coarse.fillna(0.0)>0.0, True, False) #wet:True, dry:False
+        
+     
+        da_fineB = xr.where(da_fine.fillna(0.0)>0.0, True, False)
+        
+     
+        #===========================================================================
+        # calc for each tag
+        #===========================================================================
+        keys = ['tag', 'MannningsValue']
+        ofp_lib  = dict()
+        
+        #===========================================================================
+        # single core
+        #===========================================================================
+        if max_workers is None:
+            for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True):
+         
+                gda_coarseB = da_coarseB.loc[{'tag':gkey0}] #get this coarse
+         
+                log.info(f'computing for {gkey0}')
+                
+                #=======================================================================
+                # calc for each mannings
+                #=======================================================================
+                   
+                ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
+                                              log=log.getChild(gkey0))
+                
+     
+                
+        #===========================================================================
+        # multi-core
+        #===========================================================================
+        else:
+            log.info(f'w/ max_workers={max_workers}')
+            with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+                futures = [
+                    executor.submit(_multi_confu_loop, gkey0, gda_fineB, da_coarseB, out_dir, encoding, keys
+                                    ) for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True)]
+                for future in concurrent.futures.as_completed(futures):
+                    gkey0 = future.result()
+                    ofp_lib[gkey0] = future.result()
+            
+     
+            
+    #=======================================================================
+    # wrap
+    #=======================================================================
+    log.info(f'finishedto \n    {out_dir}')
+    
+    return out_dir
+        
+ 
         
 
 
@@ -155,88 +212,6 @@ def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None)
     
     return ofp_d
 
-def write_confusion_stack(da_coarse,da_fine, log=None, baseTag='base', out_dir=None,
-                          encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
-                          max_workers=5,
-                          ):
-    """calc CSI of coarse against fine
-    
-    
-    Params
-    -----------
-    baseTag: str
-        value of 'tag' field to take as the base
-    """
-    
-    #===========================================================================
-    # setup
-    #===========================================================================
-    if out_dir is None:
-        out_dir=os.path.join(lib_dir, '04_confu')
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
- 
-    #===========================================================================
-    # data prep
-    #===========================================================================
- 
-    
-    #convert to boolean
-    
-    da_coarseB = xr.where(da_coarse.fillna(0.0)>0.0, True, False) #wet:True, dry:False
-    
- 
-    da_fineB = xr.where(da_fine.fillna(0.0)>0.0, True, False)
-    
- 
-    #===========================================================================
-    # calc for each tag
-    #===========================================================================
-    keys = ['tag', 'MannningsValue']
-    ofp_lib  = dict()
-    
-    #===========================================================================
-    # single core
-    #===========================================================================
-    if max_workers is None:
-        for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True):
-     
-            gda_coarseB = da_coarseB.loc[{'tag':gkey0}] #get this coarse
-     
-            log.info(f'computing for {gkey0}')
-            
-            #=======================================================================
-            # calc for each mannings
-            #=======================================================================
-               
-            ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
-                                          log=log.getChild(gkey0))
-            
- 
-            
-    #===========================================================================
-    # multi-core
-    #===========================================================================
-    else:
-        log.info(f'w/ max_workers={max_workers}')
-        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
-            futures = [
-                executor.submit(_multi_confu_loop, gkey0, gda_fineB, da_coarseB, out_dir, encoding, keys
-                                ) for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True)]
-            for future in concurrent.futures.as_completed(futures):
-                gkey0 = future.result()
-                ofp_lib[gkey0] = future.result()
-        
- 
-        
-    #=======================================================================
-    # wrap
-    #=======================================================================
-    log.info(f'finishedto \n    {out_dir}')
-    
-    return out_dir
- 
-        
  
 
     
@@ -247,7 +222,7 @@ if __name__=="__main__":
         fine_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc', 
             )
     
-    calc_performance_stats(**kwargs)
+    write_confusion_stack(**kwargs)
     
     
 
