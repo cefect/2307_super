@@ -153,6 +153,7 @@ def load_coarse_asc_concat_all(
         #===========================================================================
         #looad lookup table
         lookup_df = pd.read_csv(lookup_fp,sep=' ', index_col=0)
+        """NOTE: this file mis-spells Mannings"""
         log.info(f'loaded lookup_df={str(lookup_df.shape)} from \n    {lookup_fp}')
         
         #build the metadata
@@ -474,43 +475,42 @@ if __name__=="__main__":
     # coarse
     #===========================================================================
  
- #==============================================================================
- #    kwargs = dict(        
- #        
- #            #search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\004m\raw',
- #            search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\032m\raw',
- #            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_100.pkl',
- #            meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
- # 
- #            #count_file_limiter=100,
- #            #processes=True, #this works
- #            #processes=False, n_workers=None, #fails
- #            #processes=False, n_workers=1, #lock fail
- #            processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
- #            )
- # 
- # 
- #    dask_run_cluster(load_coarse_asc_concat_all, **kwargs)
- #==============================================================================
+    kwargs = dict(        
+         
+ 
+            search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\032m\raw',
+ 
+            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
+  
+            #count_file_limiter=100,
+            #processes=True, #this works
+            #processes=False, n_workers=None, #fails
+            #processes=False, n_workers=1, #lock fail
+            #processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
+            )
+  
+  
+    #dask_run_cluster(load_coarse_asc_concat_all, **kwargs)
+    load_coarse_asc_concat_all(**kwargs)
     
     
     #===========================================================================
     # fine
     #===========================================================================
     
- #==============================================================================
- #    kwargs = dict(        
- # 
- #            search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\004m\raw',
- # 
- #            #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
- # 
- # 
- #            processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
- #            )
- #    
- #    dask_run_cluster(load_fine_asc_concat_all, **kwargs)
- #==============================================================================
+  #=============================================================================
+  #   kwargs = dict(        
+  # 
+  #           search_dir=r'l:\10_IO\2307_super\ins\hyd\ahr\20230804\004m\raw',
+  # 
+  #           #meta_pick_fp=r'l:\10_IO\2307_super\lib\01_concat\meta_raw_1494.pkl',
+  # 
+  # 
+  #           processes=True, threads_per_worker=1, #works, throws RuntimeWarning: coroutine
+  #           )
+  #    
+  #   dask_run_cluster(load_fine_asc_concat_all, **kwargs)
+  #=============================================================================
         
 
     
