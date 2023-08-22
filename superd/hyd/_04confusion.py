@@ -47,7 +47,7 @@ def write_confusion_stack(coarse_nc_dir=None,
                            fine_fp=None,
                            out_dir=None,
                              encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
-                          max_workers=5,
+                          max_workers=None,
  
                            ):
     """compute performance stats for extent and value"""
@@ -92,7 +92,7 @@ def write_confusion_stack(coarse_nc_dir=None,
                        combine="nested",
                        concat_dim='tag',
                        decode_coords="all",
-                       chunks={'x':-1, 'y':-1, 'tag':1, 'MannningsValue':1},
+                       chunks={'x':-1, 'y':-1, 'tag':1, 'ManningsValue':1},
                    ) as ds_coarse, xr.open_dataarray(fine_fp, engine='netcdf4', chunks={'x':-1, 'y':-1, 'tag':1}
                                         ) as da_fine:
      
@@ -130,7 +130,7 @@ def write_confusion_stack(coarse_nc_dir=None,
         #===========================================================================
         # calc for each tag
         #===========================================================================
-        keys = ['tag', 'MannningsValue']
+        keys = ['tag', 'ManningsValue']
         ofp_lib  = dict()
         
         #===========================================================================
@@ -195,7 +195,7 @@ def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None)
         
     ofp_d = dict()
      
-    log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.MannningsValue)}')
+    log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.ManningsValue)}')
     for gkey1, gdaB_i in gda_coarseB.groupby(keys[1], squeeze=False):
     #setup
         keys_d = dict(zip(keys, [gkey0, gkey1]))
