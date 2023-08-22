@@ -15,7 +15,7 @@ load asc files into  xarray dataset
 import os, hashlib, logging, shutil, psutil, webbrowser, sys
 from datetime import datetime
 
-import threading
+#import threading
 
 import numpy as np
 import pandas as pd

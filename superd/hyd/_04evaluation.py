@@ -27,19 +27,23 @@ from definitions import lib_dir, wrk_dir, temp_dir
 
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
-from superd.hyd.coms import load_nc_to_xarray
+from superd.hyd.coms import load_nc_to_xarray, confusion_codes
 
-from superd.hp import init_log, today_str, get_filepaths, dstr, get_confusion_cat
-
- 
-
-
-
+from superd.hp import (
+    init_log, today_str, get_filepaths, dstr, get_confusion_cat,
+    get_log_stream,
+    )
 
  
 
-def calc_performance_stats(coarse_nc_fp=None,
-                           fine_nc_fp=None,
+
+
+
+ 
+
+def calc_performance_stats(coarse_nc_dir=None,
+                           coarse_fp_l=None,
+                           fine_fp=None,
                            out_dir=None,
                            pick_d=dict(),
                            ):
@@ -49,16 +53,7 @@ def calc_performance_stats(coarse_nc_fp=None,
     #===========================================================================
     # defautls
     #===========================================================================
-    #nc filepaths
-    def get_nc_fp(fp, subdir):
-        if fp is None:
-            fp =  get_filepaths(os.path.join(lib_dir, subdir), count=1)
-            
-        assert os.path.exists(fp), fp
-        return fp        
-     
-    coarse_nc_fp =get_nc_fp(coarse_nc_fp, '01_concat')    
-    fine_nc_fp =get_nc_fp(fine_nc_fp, '01_concatF')
+ 
         
     
     if out_dir is None:
@@ -68,127 +63,158 @@ def calc_performance_stats(coarse_nc_fp=None,
     
     log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='perf')
     
-    log.info(f'building from \n    coarse: {coarse_nc_fp}\n    fine: {fine_nc_fp}')
     #===========================================================================
-    # CSI
+    # load the fine
     #===========================================================================
-    if not 'csi' in pick_d:
-        get_csi_fromStack(coarse_nc_fp, fine_nc_fp, log=log)
-        
-        
-
-
-    
-def get_csi_fromStack(coarse_nc_fp, fine_nc_fp, log=None):
-    """calc CSI of coarse against fine"""
-    
+    #da_fine =  xr.open_dataarray(fine_fp, engine='netcdf4', mask_and_scale=True,chunks={'x':-1, 'y':-1, 'tag':1})
     
     #===========================================================================
-    # load arras
-    #===========================================================================
-    daF =  xr.open_dataarray(fine_nc_fp, engine='netcdf4', mask_and_scale=True, 
-        chunks={'x':-1, 'y':-1, 'tag':1}).rio.write_crs(f'EPSG:{epsg_id}')
-        
-    log.info(f'loaded FINE {daF.shape} w/ \n    {daF.dims}\n    {daF.chunks}\n    res={daF.rio.resolution()}')
+    # get filepaths
+    #===========================================================================\
+    if coarse_fp_l is None:
+        log.info(f'building from {coarse_nc_dir}')
+        coarse_fp_l = get_filepaths(coarse_nc_dir, ext='.nc')
     
     
-    daC = xr.open_dataarray(coarse_nc_fp, engine='netcdf4', mask_and_scale=True, 
-        chunks={'x':-1, 'y':-1, 'tag':1, 'MannningsValue':1}).rio.write_crs(f'EPSG:{epsg_id}')
-        
-    log.info(f'loaded COARSE {daC.shape} w/ \n    {daC.dims}\n    {daC.chunks}\n    res={daC.rio.resolution()}')
+    log.info(f'w/ {len(coarse_fp_l)} coarse files\n' + '\n    '.join([os.path.basename(fp) for fp in coarse_fp_l]))
+    log.info(f'from fine {os.path.basename(fine_fp)}')
     
     #===========================================================================
-    # check shapes
+    # load the cooarse
     #===========================================================================
-    d=dict() 
-    for i in [1, 2]: 
-        d[i] = daF.shape[i]/daC.shape[i+1]
-        assert int(d[i])==float(d[i]), f' dim {i} not event\n    %s'%d
+    """not concating the coarse and fine as they have different shaped indexes (fine is missing Mannings)"""
+    
+    with xr.open_mfdataset(coarse_fp_l, 
+                           #parallel=True,  
+                       engine='netcdf4',
+                       data_vars='minimal',
+                       combine="nested",
+                       concat_dim='tag',
+                       decode_coords="all",
+                       chunks={'x':-1, 'y':-1, 'tag':1, 'MannningsValue':1},
+                   ) as ds_coarse, xr.open_dataarray(fine_fp, engine='netcdf4', chunks={'x':-1, 'y':-1, 'tag':1}
+                                        ) as da_fine:
+     
+        log.info(f'loaded {ds_coarse.dims}'+
+             f'\n    coors: {list(ds_coarse.coords)}'+
+             f'\n    data_vars: {list(ds_coarse.data_vars)}'+
+             f'\n    crs:{ds_coarse.rio.crs}'
+             )
         
-    #===========================================================================
-    # build coarse resample
-    #===========================================================================
         
+        
+        #re-order to match tag coords in other dataArray
+        da_coarse = ds_coarse.loc[{'tag':da_fine['tag'].values}]['wd_max']
  
-    
-    #group on daC and calc each
-    #===========================================================================
-    # calc for each tag
-    #===========================================================================
-    new_shape = (daF.shape[1], daF.shape[2])
-    
- 
-    ofp_d  = dict()
-    for gkey, gdaC in daC.groupby('tag'):
-        #log.info(f'computing for {gkey}')
-
-        #defaults
-        uuid = hashlib.md5(f'{gkey}_{new_shape}_{coarse_nc_fp}'.encode("utf-8")).hexdigest()
-        ofp_d[gkey] = os.path.join(temp_dir, f'coarse_reproject_{gkey}_{uuid}.nc')
         
-        if not os.path.exists(ofp_d[gkey]):
-            #=======================================================================
-            # resmplae
-            #=======================================================================
-            log.info(f'resampling \'{gkey}\' {gdaC.shape} to {new_shape}')
-            
-            """loads to memory.. need to write to release"""
-            gdaC_f = gdaC.rio.reproject(daF.rio.crs,
-                               shape=new_shape,
-                               resampling=Resampling.nearest,
-                               )
-            
-            log.info(f'resampled {gkey} from {gdaC.shape} to {gdaC_f.shape} w/ res={gdaC_f.rio.resolution()}. writing')
-            
-            #add meta
-            
-            #=======================================================================
-            # write
-            #=======================================================================
+        #check
+        for k in ['x', 'y', 'tag']:
+            assert np.array_equal(da_coarse.coords[k].values, da_fine.coords[k].values), k
     
-            gdaC_f.to_netcdf(ofp_d[gkey], mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
-            log.info(f'wrote {gdaC_f.shape} to \n    %s'%ofp_d[gkey])
-            
-            gdaC_f.close()
-            
+        #===========================================================================
+        # CSI
+        #===========================================================================
+        if not 'confu' in pick_d:
+            write_confusion_stack(da_coarse,da_fine, log=log, baseTag='base')
+        
+        
+
+
+    
+
+def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None):
+    
+    if log is None:
+        log = get_log_stream()
+        
+    ofp_d = dict()
+     
+    log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.MannningsValue)}')
+    for gkey1, gdaB_i in gda_coarseB.groupby(keys[1], squeeze=True):
+    #setup
+        keys_d = dict(zip(keys, [gkey0, gkey1]))
+        uuid = hashlib.md5(f'{keys_d}'.encode("utf-8")).hexdigest()
+        ofp_d[gkey1] = os.path.join(out_dir, f'confu_{gkey0}_{gkey1}_{uuid}.nc')
+        #cnt += 1
+    #write
+        if not os.path.exists(ofp_d[gkey1]):
+            log.info(f'    get_confusion_cat for {keys_d} to')
+            conf_ar = get_confusion_cat(gda_fineB.squeeze().values, gdaB_i.values, confusion_codes=confusion_codes)
+            #write
+            log.info(f'        to_netcdf to {ofp_d[gkey1]}')
+            conf_da = xr.DataArray(data=conf_ar, coords=gdaB_i.coords, name='confusion').astype(int)
+            conf_da.encoding.update(encoding)
+            conf_da.to_netcdf(ofp_d[gkey1], mode='w', format='netcdf4', engine='netcdf4', compute=True)
         else:
-            log.info(f'{gkey} exists... skipping')
-        
-    #===========================================================================
-    # collect
-    #===========================================================================
-    log.info(f'finished writing to {len(ofp_d)}')
-        
+            log.debug(f'already exists {keys_d}... skipping')
+        log.debug(f'finished {keys_d}')
     
+    return ofp_d
+
+def write_confusion_stack(da_coarse,da_fine, log=None, baseTag='base', out_dir=None,
+                          encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
+                          ):
+    """calc CSI of coarse against fine
+    
+    
+    Params
+    -----------
+    baseTag: str
+        value of 'tag' field to take as the base
+    """
+    
+    #===========================================================================
+    # setup
+    #===========================================================================
+    if out_dir is None:
+        out_dir=os.path.join(lib_dir, '04_confu')
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+ 
+    #===========================================================================
+    # data prep
+    #===========================================================================
+ 
+    
+    #convert to boolean
+    
+    da_coarseB = xr.where(da_coarse.fillna(0.0)>0.0, True, False) #wet:True, dry:False
+    
+ 
+    da_fineB = xr.where(da_fine.fillna(0.0)>0.0, True, False)
+    
+ 
     #===========================================================================
     # calc for each tag
     #===========================================================================
-    for gkey, gdaC in daC.groupby('tag'):
-        log.info(f'computing for {gkey}')
-        
-        #get fine
-        daF_i = daF.loc[{'tag':gkey}]
-        
-        
-        """
-        daF_i.plot.imshow()
-        """
+    keys = ['tag', 'MannningsValue']
+    ofp_lib  = dict()
+    for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True):
+ 
+        gda_coarseB = da_coarseB.loc[{'tag':gkey0}] #get this coarse
+ 
+        log.info(f'computing for {gkey0}')
+ 
+ 
+ 
         #=======================================================================
-        # inundation performance----
+        # calc for each mannings
         #=======================================================================
-        #=======================================================================
-        # convert to boolean
-        #=======================================================================
-        log.info(f'converting to boolean')
-        daF_i_bool = daF_i.fillna(0.0).where(daF_i>=0, True, False).astype(bool) #0:dry, 1:wet
-        gdaC_i_f_bool = gdaC_f.fillna(0.0).where(gdaC_f>=0, True, False).astype(bool)  #0:dry, 1:wet
+           
+        ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
+                                      log=log.getChild(gkey0))
         
         #=======================================================================
-        # confusion
+        # wrap tag
         #=======================================================================
-        log.info(f'building confusion mat on {len(gdaC_i_f_bool.MannningsValue)}')
-        for gkey1, gdaC_i_f_bool_j in gdaC_i_f_bool.groupby('MannningsValue'):
-            get_confusion_cat(daF_i_bool, gdaC_i_f_bool)
+ 
+        
+    #=======================================================================
+    # wrap
+    #=======================================================================
+    log.info(f'finishedto \n    {out_dir}')
+    
+    return out_dir
  
         
  
@@ -197,9 +223,8 @@ def get_csi_fromStack(coarse_nc_fp, fine_nc_fp, log=None):
 if __name__=="__main__":
  
     kwargs = dict(
-            fine_nc_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc',
-            coarse_nc_fp= r'l:\10_IO\2307_super\lib\02_clip\concat_clip_coarse_5-299-211-653_20230807.nc',      
- 
+        coarse_nc_dir=r'l:\10_IO\2307_super\lib\03_resample',
+        fine_fp=r'l:\10_IO\2307_super\lib\02_clip\concat_clip_fine_5-1688-5224_20230807.nc', 
             )
     
     calc_performance_stats(**kwargs)

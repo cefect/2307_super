@@ -182,14 +182,17 @@ def write_coarse_resample(coarse_nc_fp,
     return ofp_d
         
  
-def concat_fine_and_coarse(coarse_nc_dir=None,
+def xxxconcat_fine_and_coarse(coarse_nc_dir=None,
                            fine_nc_fp=None,
                            out_dir=None,
                            client=None,
                            encoding = {'zlib': True, 'complevel': 5},
  
                            ):
-    """compute performance stats for extent and value"""
+    """compute performance stats for extent and value
+    
+    nicer to just keep as separate files
+    """
     
     
     #===========================================================================
@@ -315,7 +318,7 @@ if __name__=="__main__":
     #dask_run_cluster(concat_fine_and_coarse, **kwargs, processes=False, n_workers=1, threads_per_worker=14)
     
     #turn of chunking (memory error)
-    #
+    #seems to be fastest (but still quite slow)
     dask_run_cluster(concat_fine_and_coarse, **kwargs, processes=True, n_workers=8, threads_per_worker=2)
     
     #also verly slow

@@ -12,6 +12,8 @@ import rioxarray
 import xarray as xr
 
 
+confusion_codes={'TP':11, 'TN':12, 'FP':21, 'FN':22}
+
 
 def load_nc_to_xarray(fp,
                       ):

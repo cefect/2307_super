@@ -2,6 +2,8 @@
 Created on Aug. 7, 2023
 
 @author: cefect
+
+clip arrays to make evenly divisible
 '''
 
 
