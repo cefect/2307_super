@@ -1,6 +1,6 @@
 """
 
-evaluating coarse wsh grids (vs. fine)
+building confusion grids for each coarse sim (vs. fine)
 """
 
 
@@ -58,7 +58,7 @@ def write_confusion_stack(coarse_nc_dir=None,
     #===========================================================================
  
     if out_dir is None:
-        out_dir=os.path.join(lib_dir, '04_confu')
+        out_dir=os.path.join(lib_dir, '04_confu2')
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
     
@@ -147,7 +147,7 @@ def write_confusion_stack(coarse_nc_dir=None,
                 # calc for each mannings
                 #=======================================================================
                    
-                ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
+                ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, os.path.join(out_dir, gkey0), encoding, keys, gkey0,
                                               log=log.getChild(gkey0))
                 
      
@@ -181,17 +181,22 @@ def write_confusion_stack(coarse_nc_dir=None,
 def _multi_confu_loop(gkey0, gda_fineB, da_coarseB, out_dir, encoding, keys):
     
  
-    return _confu_loop(gda_fineB, da_coarseB.loc[{'tag':gkey0}], out_dir, encoding, keys, gkey0)
+    return _confu_loop(gda_fineB, da_coarseB.loc[{'tag':gkey0}],  os.path.join(out_dir, gkey0), encoding, keys, gkey0)
 
 def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None):
     
+    #===========================================================================
+    # setup
+    #===========================================================================
     if log is None:
         log = get_log_stream()
+        
+    if not os.path.exists(out_dir): os.makedirs(out_dir)
         
     ofp_d = dict()
      
     log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.MannningsValue)}')
-    for gkey1, gdaB_i in gda_coarseB.groupby(keys[1], squeeze=True):
+    for gkey1, gdaB_i in gda_coarseB.groupby(keys[1], squeeze=False):
     #setup
         keys_d = dict(zip(keys, [gkey0, gkey1]))
         uuid = hashlib.md5(f'{keys_d}'.encode("utf-8")).hexdigest()
