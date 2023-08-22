@@ -17,9 +17,4 @@ confusion_codes={'TP':11, 'TN':12, 'FP':21, 'FN':22}
 coln_d = {'man':'MannningsValue'}
 
 
-def load_nc_to_xarray(fp,
-                      ):
-    """load a netcdf file to xarray"""
-    
-    assert os.path.exists(fp), fp
-    
+ 

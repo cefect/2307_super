@@ -28,7 +28,7 @@ from definitions import lib_dir, wrk_dir, temp_dir
 
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
-from superd.hyd.coms import load_nc_to_xarray, confusion_codes, coln_d
+from superd.hyd.coms import confusion_codes, coln_d
 
 from superd.hp import (
     init_log, today_str, get_filepaths, dstr, get_confusion_cat,
@@ -47,7 +47,7 @@ def write_confusion_stack(coarse_nc_dir=None,
                            fine_fp=None,
                            out_dir=None,
                              encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
-                          max_workers=None,
+                          max_workers=5,
  
                            ):
     """compute performance stats for extent and value"""

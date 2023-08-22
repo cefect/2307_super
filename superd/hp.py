@@ -192,7 +192,8 @@ def get_filepaths(search_dir, ext='.nc', count=None, nested=False):
     #===========================================================================
     else:
         nested_l = list()
-        sub_dirs_l = [os.path.join(search_dir, e) for e in os.listdir(search_dir)]
+        #sub_dirs_l = [os.path.join(search_dir, e) for e in os.listdir(search_dir)]
+        sub_dirs_l = [os.path.join(search_dir, e) for e in next(os.walk(search_dir))[1]]
         for sdir1 in sub_dirs_l:
             res_l = get_filepaths(sdir1, ext=ext, count=count, nested=False)
             if len(res_l)>0:
