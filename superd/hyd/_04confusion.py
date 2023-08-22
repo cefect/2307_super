@@ -28,7 +28,7 @@ from definitions import lib_dir, wrk_dir, temp_dir
 
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
-from superd.hyd.coms import load_nc_to_xarray, confusion_codes
+from superd.hyd.coms import load_nc_to_xarray, confusion_codes, coln_d
 
 from superd.hp import (
     init_log, today_str, get_filepaths, dstr, get_confusion_cat,
@@ -92,7 +92,7 @@ def write_confusion_stack(coarse_nc_dir=None,
                        combine="nested",
                        concat_dim='tag',
                        decode_coords="all",
-                       chunks={'x':-1, 'y':-1, 'tag':1, 'ManningsValue':1},
+                       chunks={'x':-1, 'y':-1, 'tag':1, coln_d['man']:1},
                    ) as ds_coarse, xr.open_dataarray(fine_fp, engine='netcdf4', chunks={'x':-1, 'y':-1, 'tag':1}
                                         ) as da_fine:
      
@@ -130,7 +130,7 @@ def write_confusion_stack(coarse_nc_dir=None,
         #===========================================================================
         # calc for each tag
         #===========================================================================
-        keys = ['tag', 'ManningsValue']
+        keys = ['tag', coln_d['man']]
         ofp_lib  = dict()
         
         #===========================================================================
@@ -195,7 +195,7 @@ def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None)
         
     ofp_d = dict()
      
-    log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.ManningsValue)}')
+    log.info(f'building confusion mats for \'{gkey0}\' on {len(gda_coarseB.MannningsValue)}')
     for gkey1, gdaB_i in gda_coarseB.groupby(keys[1], squeeze=False):
     #setup
         keys_d = dict(zip(keys, [gkey0, gkey1]))
