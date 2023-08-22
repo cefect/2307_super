@@ -11,7 +11,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-import dask
+#import dask
+import concurrent.futures
 
 
 from osgeo import gdal # Import gdal before rasterio
@@ -120,7 +121,10 @@ def calc_performance_stats(coarse_nc_dir=None,
         
 
 
+def _multi_confu_loop(gkey0, gda_fineB, da_coarseB, out_dir, encoding, keys):
     
+ 
+    return _confu_loop(gda_fineB, da_coarseB.loc[{'tag':gkey0}], out_dir, encoding, keys, gkey0)
 
 def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None):
     
@@ -153,6 +157,7 @@ def _confu_loop(gda_fineB, gda_coarseB,out_dir, encoding, keys, gkey0, log=None)
 
 def write_confusion_stack(da_coarse,da_fine, log=None, baseTag='base', out_dir=None,
                           encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
+                          max_workers=5,
                           ):
     """calc CSI of coarse against fine
     
@@ -189,24 +194,39 @@ def write_confusion_stack(da_coarse,da_fine, log=None, baseTag='base', out_dir=N
     #===========================================================================
     keys = ['tag', 'MannningsValue']
     ofp_lib  = dict()
-    for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True):
+    
+    #===========================================================================
+    # single core
+    #===========================================================================
+    if max_workers is None:
+        for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True):
+     
+            gda_coarseB = da_coarseB.loc[{'tag':gkey0}] #get this coarse
+     
+            log.info(f'computing for {gkey0}')
+            
+            #=======================================================================
+            # calc for each mannings
+            #=======================================================================
+               
+            ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
+                                          log=log.getChild(gkey0))
+            
  
-        gda_coarseB = da_coarseB.loc[{'tag':gkey0}] #get this coarse
- 
-        log.info(f'computing for {gkey0}')
- 
- 
- 
-        #=======================================================================
-        # calc for each mannings
-        #=======================================================================
-           
-        ofp_lib[gkey0] =  _confu_loop(gda_fineB, gda_coarseB, out_dir, encoding, keys, gkey0,
-                                      log=log.getChild(gkey0))
+            
+    #===========================================================================
+    # multi-core
+    #===========================================================================
+    else:
+        log.info(f'w/ max_workers={max_workers}')
+        with concurrent.futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+            futures = [
+                executor.submit(_multi_confu_loop, gkey0, gda_fineB, da_coarseB, out_dir, encoding, keys
+                                ) for gkey0, gda_fineB in da_fineB.groupby(keys[0], squeeze=True)]
+            for future in concurrent.futures.as_completed(futures):
+                gkey0 = future.result()
+                ofp_lib[gkey0] = future.result()
         
-        #=======================================================================
-        # wrap tag
-        #=======================================================================
  
         
     #=======================================================================
