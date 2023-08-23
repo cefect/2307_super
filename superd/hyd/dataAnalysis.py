@@ -47,7 +47,8 @@ def set_doc_style():
         'ytick.labelsize':font_size,
         'figure.titlesize':font_size+2,
         'figure.autolayout':False,
-        'figure.figsize':(17.7*cm,18*cm),#typical full-page textsize for Copernicus (with 4cm for caption)
+        'figure.figsize':(17.7*cm,30*cm),#typical full-page textsize for Copernicus (with 4cm for caption)
+        #'figure.figsize':(17.7*cm,18*cm),#typical full-page textsize for Copernicus (with 4cm for caption)
         'legend.title_fontsize':'large',
         'text.usetex':usetex,
         }.items():
@@ -126,9 +127,8 @@ from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
 from superd.hp import init_log, today_str, get_filepaths, dstr
 
-
-from superd.hp import init_log, today_str, get_filepaths
-from superd.hyd.coms import load_nc_to_xarray
+ 
+from superd.hyd.coms import coln_d 
 
 
 def calc_stats_ds(nc_fp, log):
@@ -177,7 +177,7 @@ def plot_stats_per_sim(
         
     
     if out_dir is None:
-        out_dir=os.path.join(wrk_dir, 'stats_per_sim', today_str)
+        out_dir=os.path.join(wrk_dir, 'outs', 'stats_per_sim', today_str)
     if not os.path.exists(out_dir):os.makedirs(out_dir)
     
     log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='stats')
@@ -210,7 +210,7 @@ def plot_stats_per_sim(
     #===========================================================================
     # hexbin scatters
     #===========================================================================
- 
+
     ax = sns.relplot(
             data=dxind.stack().rename('vals').reset_index() ,
             x="MannningsValue",
@@ -261,18 +261,223 @@ def plot_stats_per_sim(
     return res_d
         
         
+def plot_inun_perf_stack(
+        df_fp = None,
+        out_dir=None,
+        ):
+    
+    """quick inun performance multi-plot with seaborn"""
     
     
+    #===========================================================================
+    # defaults
+    #===========================================================================
     
+    if out_dir is None:
+        out_dir=os.path.join(wrk_dir, 'outs', 'inun_perf', today_str)
+    if not os.path.exists(out_dir):os.makedirs(out_dir)
+    
+    log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='stats')
+    res_d=dict()
+    #===========================================================================
+    # load
+    #===========================================================================
+    dxind = pd.read_pickle(df_fp)
+    
+    log.info(f' loaded {dxind.shape} from \n    {df_fp}')
+    
+    serx = dxind.stack().rename('vals')
+    serx.index = serx.index.set_names('metric', level=2)
+    #===========================================================================
+    # plot
+    #===========================================================================
+    
+    for i, coln_l in enumerate([
+        ['criticalSuccessIndex','hitRate', 'falseAlarms',  'errorBias'],
+        ['TN','TP', 'FP', 'FN']]
+        ):
         
+        
+ 
+ 
+        facetGrid = sns.relplot(
+                data=serx.loc[:, :, coln_l].reset_index(),
+                x="MannningsValue",
+                y="vals",
+                hue="tag", 
+                #size="choice", 
+                row="metric",
+                kind="line", 
+                size_order=["T1", "T2"], 
+                 
+                height=3, aspect=3,  
+                facet_kws=dict(sharey=False),
+     
+            )
+    
+ 
+        #===========================================================================
+        # add optimum line
+        #===========================================================================
+        opt_d = dict()
+        for tag, gdf in dxind.groupby('tag'):
+            
+            #filter those with low false alarms
+            #bx = gdf['errorBias']<0.1
+            bx = gdf.index.get_level_values(coln_d['man'])>0.05
+ 
+            
+            #get location of maximum CSI within this range
+            opt_d[tag] = gdf.loc[bx, 'criticalSuccessIndex'].idxmax()[1]
+            
+            for ax_ar in facetGrid.axes:
+                ax=ax_ar[0]
+                ax.axvline(opt_d[tag], label=tag, color='black', linestyle='dashed', linewidth=0.5)
+ 
+        log.info(f'got optimums: \n    {opt_d}')
+        
+        anno_obj = facetGrid.axes[0][0].text(0.1, 0.9, dstr(opt_d), transform=ax.transAxes, va='center',
+                           fontsize=16)
+        
+        #===========================================================================
+        # dxind['criticalSuccessIndex'].groupby('tag').idxmax()
+        # 
+        # dxind['criticalSuccessIndex'].idxmax()
+        #===========================================================================
+        
+        #ax.axvline()
+        
+        #===========================================================================
+        # #write
+        #===========================================================================
+        res_d['relplot'] = os.path.join(out_dir, f'stats_relplot_{i}_{len(dxind)}.svg')
+        ax.figure.savefig(res_d['relplot'], dpi = 300,   transparent=True)
+        log.info(f'wrote to \n    %s'%res_d['relplot'])
+     
+        plt.close('all')
+        
+        log.info('finished')
+    
+    """custom plot?  mark optimum?"""
+        
+    
+    
+    
+def plot_inun_perf_stack2(
+        df_fp = None,
+        out_dir=None,
+        ):
+    
+    """inun performance multi-plot"""
+    
+    
+    #===========================================================================
+    # defaults
+    #===========================================================================
+    
+    if out_dir is None:
+        out_dir=os.path.join(wrk_dir, 'outs', 'inun_perf', today_str)
+    if not os.path.exists(out_dir):os.makedirs(out_dir)
+    
+    log = init_log(fp=os.path.join(out_dir, today_str+'.log'), name='stats')
+    res_d=dict()
+    #===========================================================================
+    # load
+    #===========================================================================
+    dxind = pd.read_pickle(df_fp)
+    
+    log.info(f' loaded {dxind.shape} from \n    {df_fp}')
+    
+    serx = dxind.stack().rename('vals')
+    serx.index = serx.index.set_names('metric', level=2)
+    #===========================================================================
+    # plot
+    #===========================================================================
+    
+    for i, coln_l in enumerate([
+        ['criticalSuccessIndex','hitRate', 'falseAlarms',  'errorBias'],
+        ['TN','TP', 'FP', 'FN']]
+        ):
+        
+        
+ 
+ 
+        facetGrid = sns.relplot(
+                data=serx.loc[:, :, coln_l].reset_index(),
+                x="MannningsValue",
+                y="vals",
+                hue="tag", 
+                #size="choice", 
+                row="metric",
+                kind="line", 
+                size_order=["T1", "T2"], 
+                 
+                height=3, aspect=3,  
+                facet_kws=dict(sharey=False),
+     
+            )
+    
+ 
+        #===========================================================================
+        # add optimum line
+        #===========================================================================
+        opt_d = dict()
+        for tag, gdf in dxind.groupby('tag'):
+            
+            #filter those with low false alarms
+            #bx = gdf['errorBias']<0.1
+            bx = gdf.index.get_level_values(coln_d['man'])>0.05
+ 
+            
+            #get location of maximum CSI within this range
+            opt_d[tag] = gdf.loc[bx, 'criticalSuccessIndex'].idxmax()[1]
+            
+            for ax_ar in facetGrid.axes:
+                ax=ax_ar[0]
+                ax.axvline(opt_d[tag], label=tag, color='black', linestyle='dashed', linewidth=0.5)
+ 
+        log.info(f'got optimums: \n    {opt_d}')
+        
+        anno_obj = facetGrid.axes[0][0].text(0.1, 0.9, dstr(opt_d), transform=ax.transAxes, va='center',
+                           fontsize=16)
+        
+        #===========================================================================
+        # dxind['criticalSuccessIndex'].groupby('tag').idxmax()
+        # 
+        # dxind['criticalSuccessIndex'].idxmax()
+        #===========================================================================
+        
+        #ax.axvline()
+        
+        #===========================================================================
+        # #write
+        #===========================================================================
+        res_d['relplot'] = os.path.join(out_dir, f'stats_relplot_{i}_{len(dxind)}.svg')
+        ax.figure.savefig(res_d['relplot'], dpi = 300,   transparent=True)
+        log.info(f'wrote to \n    %s'%res_d['relplot'])
+     
+        plt.close('all')
+        
+        log.info('finished')
+    
+    """custom plot?  mark optimum?"""
+        
+         
  
     
     
 if __name__=="__main__":
     
-    plot_stats_per_sim(
-        stats_pick_fp=r'l:\10_IO\2307_super\stats_per_sim\20230807\stats_1495-4_20230807.pkl',
-        #nc_fp=r'l:\10_IO\2307_super\lib\01_concatb\meta_raw_1494.pkl'
+    #===========================================================================
+    # plot_stats_per_sim(
+    #     stats_pick_fp=r'l:\10_IO\2307_super\stats_per_sim\20230807\stats_1495-4_20230807.pkl',
+    #     #nc_fp=r'l:\10_IO\2307_super\lib\01_concatb\meta_raw_1494.pkl'
+    #     )
+    #===========================================================================
+    
+    
+    plot_inun_perf_stack(
+        df_fp=r'l:\10_IO\2307_super\performance\inundation\20230823\eval_inun_metrics_1494-8_20230823.pkl',
         )
     
     
