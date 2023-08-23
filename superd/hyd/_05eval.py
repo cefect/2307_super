@@ -47,7 +47,12 @@ def compute_inundation_performance(
                 # max_workers=5,
  
                            ):
-    """compute performance on inundation using confusion grids"""
+    """compute performance on inundation using confusion grids
+    
+    
+    NOTE: not set up very well
+    would be better to just loop
+    """
     start = datetime.now()
     #===========================================================================
     # defautls
@@ -87,23 +92,22 @@ def compute_inundation_performance(
         
  
         #combine a list of raster netcdfs, each with identical x,y and a single unique ManningsValue
-        with xr.open_mfdataset(fp_l,
+        with xr.open_mfdataset(
+                                fp_l,
                                 #fp_l[:3],  
-                               parallel=True,
+                               #parallel=True,
                    engine='netcdf4',                   
                    combine="nested",        
                    concat_dim=coln_d['man'],
                    #coords =['ManningsValue'], 
-                   chunks={'x':-1, 'y':-1, coln_d['man']:1},
+                   #chunks={'x':-1, 'y':-1, coln_d['man']:1},
                ) as ds_raw:
          
-            #===================================================================
-            # log.info(f'loaded {ds_raw.dims}'+
-            #      f'\n    coors: {list(ds_raw.coords)}'+
-            #      f'\n    data_vars: {list(ds_raw.data_vars)}'+
-            #      f'\n    crs:{ds_raw.rio.crs}'
-            #      )
-            #===================================================================
+            log.info(f'{i+1} loaded {ds_raw.dims}'+
+                 f'\n    coors: {list(ds_raw.coords)}'+
+                 f'\n    data_vars: {list(ds_raw.data_vars)}'+
+                 f'\n    crs:{ds_raw.rio.crs}'
+                 )
             
             ds_d[i] = ds_raw
             
@@ -189,7 +193,7 @@ if __name__=="__main__":
     
     compute_inundation_performance(**kwargs)
     
-    dask_run_cluster
+    #dask_run_cluster
     
     
 

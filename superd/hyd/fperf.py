@@ -172,8 +172,8 @@ class ValidateMask(object):
             
             #add empties
             for k,v in confusion_codes.items():
-                if not v in cser.index:
-                    cser[v] = 0
+                if not k in cser.index:
+                    cser[k] = 0
 
             self.confusion_ser = cser.copy()
             
