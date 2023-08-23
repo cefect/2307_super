@@ -20,7 +20,10 @@ from dask.diagnostics import ResourceProfiler, visualize
 import dask
 from dask.diagnostics import ProgressBar
 
-import xarray as xr
+#import xarray as xr
+
+import matplotlib
+
 
 from definitions import wrk_dir, logcfg_file
 
@@ -302,6 +305,7 @@ def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
         d[attn] = getattr(ds, attn)
     return d
 
+
 #===============================================================================
 # ERRORS--------
 #===============================================================================
@@ -337,4 +341,6 @@ def get_confusion_cat(true_arB, pred_arB,
     
     return res_ar 
 
-
+#===============================================================================
+# PLOT--------
+#===============================================================================
