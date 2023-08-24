@@ -67,7 +67,9 @@ def write_geotiffs_from_coords(tag_man_d,
     ofp_d = dict()
     with xr.open_dataarray(nc_fp, engine='netcdf4', mask_and_scale=True, 
         chunks={'x':-1, 'y':-1, 'tag':1, coln_d['man']:1}
-        ).rio.write_crs(f'EPSG:{epsg_id}') as da:
+        ).rio.write_crs(f'EPSG:{epsg_id}'
+        ).rio.write_nodata(-9999 
+                      ) as da:
         
         log.info(f'loaded {da.shape} w/ \n    {da.dims}\n    {da.chunks}\n    res={da.rio.resolution()}')
         
@@ -91,7 +93,7 @@ def write_geotiffs_from_coords(tag_man_d,
     #===========================================================================
     # wrap
     #===========================================================================
-    log.info(f'finished on {len(ofp_d)}\n    {dstr(ofp_d)}')
+    log.info(f'finished on {len(ofp_d)}\n{dstr(ofp_d)}')
     
     return ofp_d
  
