@@ -14,3 +14,5 @@ scenarioTags_d = {
             'p10':'Plus10cm',
             'p20':'Plus20cm'            
             }
+
+coln_d = {'man':'MannningsValue'}

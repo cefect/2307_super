@@ -14,7 +14,7 @@ import xarray as xr
 
 confusion_codes={'TP':11, 'TN':12, 'FP':21, 'FN':22}
 
-coln_d = {'man':'MannningsValue'}
+
 
 
  
