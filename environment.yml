@@ -1,4 +1,4 @@
-name: rim2d_tools
+name: 2307_super
 channels:
   - conda-forge
 dependencies:

@@ -146,3 +146,6 @@ definitions.py
 
 #dask profiles
 *.html
+
+#VS Code
+.vscode/
