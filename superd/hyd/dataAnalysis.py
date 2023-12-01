@@ -124,13 +124,14 @@ from osgeo import gdal # Import gdal before rasterio
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from definitions import lib_dir, wrk_dir
-from superd.hyd.ahr_params import epsg_id, scenarioTags_d
+from definitions import wrk_dir
+ 
+from superd.hyd.ahr_params import epsg_id, scenarioTags_d, coln_d
 
 from superd.hp import init_log, today_str, get_filepaths, dstr 
 
  
-from superd.hyd.coms import coln_d 
+ 
 
 from palettable.colorbrewer.diverging import BrBG_5
 
@@ -619,6 +620,7 @@ def get_inun_perf_fig(dxind,
         #=======================================================================
         if plot_optimum:
             #filter out bogus mannings
+            print(gdf.columns)
             bx = gdf.index.get_level_values(coln_d['man'])>0.05    
             
             #get location of maximum CSI within this range
@@ -680,7 +682,7 @@ if __name__=="__main__":
     
     
     plot_inun_perf_stack2(
-        df_fp=r'l:\10_IO\2307_super\performance\inundation\20230823\eval_inun_metrics_1494-8_20230823.pkl',
+        df_fp=r'l:\10_IO\2307_super\outs\performance\inundation\20230823\eval_inun_metrics_1494-8_20230823.pkl',
         )
     
     

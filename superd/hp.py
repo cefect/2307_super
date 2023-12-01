@@ -25,7 +25,8 @@ from dask.diagnostics import ProgressBar
 import matplotlib
 
 
-from definitions import wrk_dir, logcfg_file
+from definitions import wrk_dir
+from parameters import logcfg_file
 
 #===============================================================================
 # logging
