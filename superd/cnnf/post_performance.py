@@ -340,7 +340,8 @@ def compute_inundation_performance(nc_fp,
         
  
 def hwm_performance(wd_fp, hwm_fp, wd_key='water_depth',
-                    log=None, out_dir=None, ofp=None,
+                    log=None, 
+                    #out_dir=None, ofp=None,
                  ):
     """compare a depth raster against some point values"""
     #===========================================================================
@@ -348,16 +349,18 @@ def hwm_performance(wd_fp, hwm_fp, wd_key='water_depth',
     #===========================================================================
     start = datetime.now() 
     #configure outputs
-    if ofp is  None:
-        if out_dir is None:
-            out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'hwm_performance')
-     
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-            
-        ofp = os.path.join(out_dir, f'hwm_performance_{today_str}.pkl')
-        
-    if log is None: log  = get_log_stream('hwm_performance') #get the root logger
+    #===========================================================================
+    # if ofp is  None:
+    #     if out_dir is None:
+    #         out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'hwm_performance')
+    #  
+    #     if not os.path.exists(out_dir):
+    #         os.makedirs(out_dir)
+    #         
+    #     ofp = os.path.join(out_dir, f'hwm_performance_{today_str}.pkl')
+    #     
+    # if log is None: log  = get_log_stream('hwm_performance') #get the root logger
+    #===========================================================================
     
     log.info(f'on {os.path.basename(wd_fp)}')
     #=======================================================================
@@ -385,12 +388,14 @@ def hwm_performance(wd_fp, hwm_fp, wd_key='water_depth',
             
     
     # write
-    if gdf.isna().any().any():
-        log.warning(f'got some nulls')
+    bx = gdf.isna().any(axis=1)
+    if bx.any():
+        log.warning(f'got {bx.sum()}/{len(bx)} nulls...dropping')
+        gdf = gdf.loc[~bx, :]
  
 
-    gdf.to_file(ofp, crs=gdf.crs)
-    log.info(f'wrote samples to \n    {ofp}')
+    #gdf.to_file(ofp, crs=gdf.crs)
+    #log.info(f'wrote samples to \n    {ofp}')
     
     #=======================================================================
     # #calc errors
@@ -403,7 +408,7 @@ def hwm_performance(wd_fp, hwm_fp, wd_key='water_depth',
     # wrap
     #=======================================================================
     log.info('finished')
-    return err_d, fp_d, meta_d 
+    return err_d, gdf
 
 
 def _get_samples(gser, rlay_ds, colName=None):

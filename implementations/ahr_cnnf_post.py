@@ -9,6 +9,8 @@ from superd.cnnf.post_performance import (
     hwm_performance
     )
 
+import pandas as pd
+
 from hp.basic import today_str, dstr
 from hp.hyd import get_wsh_rlay
 from hp.logr import get_log_stream
@@ -104,12 +106,53 @@ def _05_hwm_performance(
     
     log  = get_log_stream('hwm_performance')
     
-    d=dict()
+    err_lib, hwm_fp_d=dict(), dict()
     for tag, fp in wsh_fp_d.items():
-        d[tag] = hwm_performance(fp, hwm_fp, log=log, out_dir=out_dir)
+        err_lib[tag], hwm_fp_d[tag]= hwm_performance(fp, hwm_fp, log=log)
     
-    print(d)
-    return d
+    df = pd.DataFrame.from_dict(err_lib).T 
+    
+    #===========================================================================
+    # wrap
+    #===========================================================================
+    if not os.path.exists(out_dir):os.makedirs(out_dir)
+    ofp = os.path.join(out_dir, f'hwm_performance_{len(df):02d}_{today_str}.pkl')
+    df.to_pickle(ofp)
+    
+    log.info(f'finished and wrote {df.shape} to \n    {ofp}')
+    return ofp
+
+def _06_concat(
+        inun_fp=r'l:\10_IO\2307_super\ahr\04_inundation_performance\inundation_performance_20231211.pkl',
+        hwm_fp=r'l:\10_IO\2307_super\ahr\05_hwm_performance\hwm_performance_04_20231211.pkl'
+        ):
+    """join metrics togehter"""
+    
+    out_dir = os.path.join(wrk_dir, '06_concat')
+    if not os.path.exists(out_dir):os.makedirs(out_dir)
+    
+    
+    
+    log  = get_log_stream('06_concat')
+    
+    #===========================================================================
+    # load
+    #===========================================================================
+    
+    inun_df = pd.read_pickle(inun_fp)
+    hwm_df = pd.read_pickle(hwm_fp)
+    
+    dxcol = pd.concat({'inun':inun_df, 'hwm':hwm_df}, names=['perf', 'tag'], axis=1)
+    
+    #===========================================================================
+    # write
+    #===========================================================================
+    ofp = os.path.join(out_dir, f'performance_dxcol_{len(dxcol):02d}_{today_str}.pkl')
+    dxcol.to_pickle(ofp)
+    
+    log.info(f'finished w/ {dxcol.shape}\n    {ofp}')
+    
+    return ofp
     
 
 if __name__=="__main__":
@@ -122,7 +165,9 @@ if __name__=="__main__":
     
     #_04_inundation_performance()
     
-    _05_hwm_performance()
+    #_05_hwm_performance()
+    
+    _06_concat()
     
     
     

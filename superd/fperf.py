@@ -9,6 +9,9 @@ import logging, datetime, copy, math
 
 import numpy as np
 import pandas as pd
+
+import scipy.stats
+
 from hp.logr import get_log_stream
 
 from parameters import confusion_codes
