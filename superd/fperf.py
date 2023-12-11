@@ -7,10 +7,44 @@ skinny implementation of fperf
 '''
 import logging
 
+import numpy as np
 import pandas as pd
-from superd.hp import get_log_stream
+from hp.logr import get_log_stream
 
-from superd.hyd.coms import confusion_codes
+from parameters import confusion_codes
+
+
+def get_confusion_cat(true_arB, pred_arB, 
+                      confusion_codes={'TP':'TP', 'TN':'TN', 'FP':'FP', 'FN':'FN'},
+                      ):
+    """compute the confusion code for each element
+    
+    Parameters
+    -----------
+    confusion_codes: dict
+        optional mapping for naming the 4 confusion categories
+    """
+    #start with dummy
+    res_ar = np.full(true_arB.shape, np.nan)
+    #true positives
+    res_ar = np.where(
+        np.logical_and(true_arB, pred_arB), 
+        confusion_codes['TP'], res_ar)
+    #true negatives
+    res_ar = np.where(
+        np.logical_and(np.invert(true_arB), np.invert(pred_arB)), 
+        confusion_codes['TN'], res_ar)
+    #false positives
+    res_ar = np.where(
+        np.logical_and(np.invert(true_arB), pred_arB), 
+        confusion_codes['FP'], res_ar)
+    #false negatives
+    res_ar = np.where(
+        np.logical_and(true_arB, np.invert(pred_arB)), 
+        confusion_codes['FN'], res_ar)
+    
+    
+    return res_ar 
 
 class ValidateMask(object):
     """compute validation metrics for a inundation mask

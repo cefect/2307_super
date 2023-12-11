@@ -1,6 +1,8 @@
 # pre-processing and evaluation batch RIM2D runs
 setup for shahin's 2023-08-01 Ahr sims
 
+2023-12-11: made some changes to better share w/ cnnf
+
 ## scripts
 - _01asc_to_concat: load asc files into  xarray dataset
 - _02clip: clip arrays to make evenly divisible

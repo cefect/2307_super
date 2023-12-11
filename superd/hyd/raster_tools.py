@@ -25,7 +25,7 @@ import xarray as xr
 from definitions import lib_dir, wrk_dir
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d, coln_d
 
-from superd.hp import init_log, today_str, get_filepaths, get_meta, dstr
+from superd.hyd.hp import init_log, today_str, get_filepaths, get_meta, dstr
 
 
 def write_geotiffs_from_coords(tag_man_d,
