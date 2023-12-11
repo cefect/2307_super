@@ -1,5 +1,6 @@
 # Super-resolution of flood inundation grids
-
+CNN applied to flood WSH grids, mostly pre-processing and data analysis
+for model training/application, see [SRCNN-flood](https://github.com/cefect/SRCNN-flood) (eventually would be nice to include a compiled version of the CNN here to avoid having the pytorch dependency here)
 
 
 ## install

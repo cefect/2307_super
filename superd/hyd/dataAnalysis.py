@@ -124,7 +124,7 @@ from osgeo import gdal # Import gdal before rasterio
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from definitions import wrk_dir
+from definitions import wrk_dir, lib_dir
  
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d, coln_d
 
@@ -514,7 +514,7 @@ def plot_inun_perf_stack2(
         out_dir=None,
         ):
     
-    """inun performance multi-plot"""
+    """plot (2x) inundation performance metrics for each scenario as a function of Mannings"""
     
     
     #===========================================================================
@@ -673,17 +673,17 @@ def get_inun_perf_fig(dxind,
     
 if __name__=="__main__":
     
+    plot_stats_per_sim(
+        stats_pick_fp=r'l:\10_IO\2307_super\outs\stats_per_sim\20230807\stats_1495-4_20230807.pkl',
+        #nc_fp=r'l:\10_IO\2307_super\lib\01_concatb\meta_raw_1494.pkl'
+        )
+    
+    
     #===========================================================================
-    # plot_stats_per_sim(
-    #     stats_pick_fp=r'l:\10_IO\2307_super\stats_per_sim\20230807\stats_1495-4_20230807.pkl',
-    #     #nc_fp=r'l:\10_IO\2307_super\lib\01_concatb\meta_raw_1494.pkl'
+    # plot_inun_perf_stack2(
+    #     df_fp=r'l:\10_IO\2307_super\outs\performance\inundation\20230823\eval_inun_metrics_1494-8_20230823.pkl',
     #     )
     #===========================================================================
-    
-    
-    plot_inun_perf_stack2(
-        df_fp=r'l:\10_IO\2307_super\outs\performance\inundation\20230823\eval_inun_metrics_1494-8_20230823.pkl',
-        )
     
     
     
