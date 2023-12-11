@@ -18,6 +18,8 @@ ensure  your system path has the following:
 ## submodules
 
 ### flood grid performance
+2023-12-11: it doesn't look like I ever actually used the submodule. removed.
+
 2023-08-07: started incorporating this (trying to migrate off of coms) and gave up
 git submodule add -b 2307_super https://github.com/cefect/fperf
 
