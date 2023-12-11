@@ -9,12 +9,12 @@ import os, logging, pprint, sys
 import logging.config
 
 from definitions import wrk_dir
-from parameters import logcfg_file
+from parameters import logcfg_file, log_format_str
 
 #===============================================================================
 # loggers-----------
 #===============================================================================
-log_format_str = '%(levelname)s.%(name)s.%(asctime)s:  %(message)s'
+ 
 def init_root_logger(
  
         log_dir = wrk_dir,

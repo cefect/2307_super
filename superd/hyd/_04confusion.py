@@ -26,12 +26,14 @@ import xarray as xr
 
 from definitions import lib_dir, wrk_dir, temp_dir
 
+from parameters import confusion_codes
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
-from superd.hyd.coms import confusion_codes, coln_d
+from superd.hyd.coms import coln_d
+from superd.fperf import get_confusion_cat
 
 from superd.hyd.hp import (
-    init_log, today_str, get_filepaths, dstr, get_confusion_cat,
+    init_log, today_str, get_filepaths, dstr, 
     get_log_stream,
     )
 

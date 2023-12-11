@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import rgb2hex
 from matplotlib.patches import ArrowStyle
 
-from matplotlib_scalebar.scalebar import ScaleBar
+#from matplotlib_scalebar.scalebar import ScaleBar
 import earthpy.spatial as es #for plotting hillshades
 
 #colormaps
@@ -303,3 +303,24 @@ class RioPlotr(object):
         return show(ar, 
                     transform=transform, 
                     ax=ax, contour=False,interpolation='nearest',**show_kwargs, **kwargs)
+        
+    
+#===============================================================================
+# ASSERTIONS-------
+#===============================================================================
+def assert_spatial_equal(left, right,  msg='',): 
+    """check all spatial attributes match"""
+    if not __debug__: # true if Python was not started with an -O option
+        return 
+    __tracebackhide__ = True     
+    
+ 
+    f= lambda ds, att_l=['crs', 'height', 'width', 'bounds', 'res']:_get_meta(ds, att_l=att_l)
+    
+    ld = rlay_apply(left, f)
+    rd = rlay_apply(right, f)
+ 
+    for k, lval in ld.items():
+        rval = rd[k]
+        if not lval == rval:
+            raise AssertionError(f'{k} mismatch\n    right={rval}\n    left={lval}\n' + msg)
