@@ -12,7 +12,9 @@ setup for shahin's 2023-08-01 Ahr sims
     - plot_stats_per_sim: compute WSH stats for each scenario as a function of Mannings
     
 plot_inun_perf_stack2
+
 ![img](/img/inun_perf2_0_1494.png)
 
 plot_stats_per_sim
+
 ![img](/img/stats_relplot_1495.png)

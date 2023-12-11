@@ -311,7 +311,7 @@ def plot_stats_per_sim(
         out_dir=None,
         stats_pick_fp=None,
         ):
-    """compute stats for each hyd result in teh stack"""
+    """compute WSH stats for each scenario as a function of Mannings"""
     
     #===========================================================================
     # defautls
@@ -514,7 +514,15 @@ def plot_inun_perf_stack2(
         out_dir=None,
         ):
     
-    """plot (2x) inundation performance metrics for each scenario as a function of Mannings"""
+    """plot (2x) inundation performance metrics for each scenario as a function of Mannings
+    
+    Params
+    --------
+    df_fp: str
+        filepath to res_dx pickle
+        ouput of superd.hyd._05eval.compute_inundation_performance()
+    
+    """
     
     
     #===========================================================================
