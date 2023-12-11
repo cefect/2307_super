@@ -94,11 +94,11 @@ def _03_build_confusion(
     return build_confusion_xr(nc_fp, out_dir=out_dir)
     
     
-def _04_compute_inundation_performance(
+def _04_inundation_performance(
         nc_fp = r'l:\10_IO\2307_super\ahr\03_build_confusion\confusion_xr_20231211.nc',
         ):
     
-    out_dir = os.path.join(wrk_dir, '04_compute_inundation_performance')
+    out_dir = os.path.join(wrk_dir, '04_inundation_performance')
     
     return compute_inundation_performance(nc_fp, out_dir=out_dir)
     
@@ -110,7 +110,9 @@ if __name__=="__main__":
     
     #_02_convert_to_xr()
     
-    _03_build_confusion()
+    #_03_build_confusion()
+    
+    _04_inundation_performance()
     
     
     

@@ -26,7 +26,7 @@ from parameters import confusion_codes
 from hp.basic import today_str
 from hp.logr import get_log_stream
 
-from superd.fperf import get_confusion_cat
+from superd.fperf import get_confusion_cat, ValidateMask
 #from superd.hyd._01asc_to_concat import _check_wsh_da
 
 
@@ -259,7 +259,7 @@ def compute_inundation_performance(nc_fp,
  
     """
     
-    raise IOError('stopped here')
+
     #===========================================================================
     # setup
     #===========================================================================
@@ -267,14 +267,14 @@ def compute_inundation_performance(nc_fp,
     #configure outputs
     if ofp is  None:
         if out_dir is None:
-            out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'compute_inundation_performance')
+            out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'inundation_performance')
      
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
             
-        ofp = os.path.join(out_dir, f'confusion_{today_str}.nc')
+        ofp = os.path.join(out_dir, f'inundation_performance_{today_str}.pkl')
         
-    if log is None: log  = get_log_stream('build_confusion_xr') #get the root logger
+    if log is None: log  = get_log_stream('inundation_performance') #get the root logger
     
     log.info(f'on {nc_fp}')
  
@@ -295,52 +295,47 @@ def compute_inundation_performance(nc_fp,
     #=======================================================================
     # compute standard confusion metrics
     #=======================================================================
-    res_d =dict()
+    d =dict()
     for gkey0, gda_i in da.groupby('tag'):
-        d = dict()
-        for gkey1, gda in gda_i.groupby(coln_d['man']):
-            log.info(f'ValidateMask on {gkey0}.{gkey1}')
+ 
+ 
             
-            try:
-                with ValidateMask(confu_ar=gda.values, logger=log) as wrkr:
-                    d[gkey1] = wrkr.get_inundation_all()
-            except Exception as e:
-                log.warning(f'failed on {gkey0}.{gkey1} w/ \n    {e}')
+        try:
+            with ValidateMask(confu_ar=gda_i.values, logger=log) as wrkr:
+                d[gkey0] = wrkr.get_inundation_all()
+        except Exception as e:
+            log.warning(f'failed on {gkey0} w/ \n    {e}')
                 
-        #wrap gkey1
-        res_d[gkey0] = pd.DataFrame.from_dict(d).T
-        res_d[gkey0].index.name = coln_d['man']
-        
-    #wrap gkey0
-    res_dx = pd.concat(res_d, names=['tag'])
+    #wrap gkey1
+    res_df = pd.DataFrame.from_dict(d).T
+
+ 
     
     #===========================================================================
     # wrap
     #===========================================================================
-    log.info(f'finished w/ {res_dx.shape}')
-    
-    #write
-    shape_str = '-'.join([str(e) for e in list(res_dx.shape)])
-    ofp = os.path.join(out_dir, f'eval_inun_metrics_{shape_str}_{today_str}')
-    
-    res_dx.to_pickle(ofp+'.pkl')
-    res_dx.to_csv(ofp+'.csv')
+    log.info(f'finished w/ {res_df.shape}')
+ 
+    res_df.to_pickle(ofp)
+ 
     
     log.info(f'wrote to \n    {ofp}')
     
     #===========================================================================
     # wrap
     #===========================================================================
-    meta_d = {
-                    'tdelta':(datetime.now()-start).total_seconds(),
-                    'RAM_GB':psutil.virtual_memory () [3]/1000000000,
-                    'disk_GB':get_directory_size(out_dir),
-                    #'output_MB':os.path.getsize(ofp)/(1024**2)
-                    }
-    log.info(meta_d)
+    #===========================================================================
+    # meta_d = {
+    #                 'tdelta':(datetime.now()-start).total_seconds(),
+    #                 'RAM_GB':psutil.virtual_memory () [3]/1000000000,
+    #                 #'disk_GB':get_directory_size(out_dir),
+    #                 #'output_MB':os.path.getsize(ofp)/(1024**2)
+    #                 }
+    # log.info(meta_d)
+    #===========================================================================
  
     
-    return out_dir
+    return res_df
         
  
         
