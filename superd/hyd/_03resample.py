@@ -36,7 +36,7 @@ from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
 from superd.hyd.coms import load_nc_to_xarray
 
-from superd.hp import init_log, today_str, get_filepaths, dstr, dask_run_cluster, dask_run_threads, get_directory_size
+from superd.hyd.hp import init_log, today_str, get_filepaths, dstr, dask_run_cluster, dask_run_threads, get_directory_size
 
 
 from superd.hyd._01asc_to_concat import _get_asc_files

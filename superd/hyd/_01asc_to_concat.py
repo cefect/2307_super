@@ -35,7 +35,7 @@ from definitions import lib_dir
 
 from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
-from superd.hp import init_log, today_str, get_filepaths, get_meta, dask_run_cluster
+from superd.hyd.hp import init_log, today_str, get_filepaths, get_meta, dask_run_cluster
 
 
 def _get_asc_meta(scenarioTags_d, fp):

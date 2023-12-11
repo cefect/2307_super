@@ -30,7 +30,7 @@ from superd.hyd.ahr_params import epsg_id, scenarioTags_d
 
 from superd.hyd.coms import confusion_codes, coln_d
 
-from superd.hp import (
+from superd.hyd.hp import (
     init_log, today_str, get_filepaths, dstr, get_confusion_cat,
     get_log_stream,
     )

@@ -15,6 +15,8 @@ requires these special packages
 
 import os, string
 import numpy as np
+
+from osgeo import gdal # Import gdal before rasterio
 import rasterio as rio
 from rasterio.plot import show
 
@@ -33,6 +35,38 @@ https://jiffyclub.github.io/palettable/colorbrewer/sequential/#
 """
 from palettable.colorbrewer.sequential import BuPu_3, Blues_9, Purples_9
 from palettable.colorbrewer.diverging import RdBu_3
+
+
+
+#===============================================================================
+# RASTERIO---------
+#===============================================================================
+def is_raster_file(filepath):
+    """probably some more sophisticated way to do this... but I always use tifs"""
+    assert isinstance(filepath, str)
+    _, ext = os.path.splitext(filepath)
+    return ext in ['.tif', '.asc']
+
+def rlay_apply(rlay, func, **kwargs):
+    """flexible apply a function to either a filepath or a rio ds"""
+    
+    assert not rlay is None 
+    assert is_raster_file(rlay)
+     
+    with rio.open(rlay, mode='r') as ds:
+        return func(ds, **kwargs)
+ 
+
+def get_meta(rlay, **kwargs):
+    return rlay_apply(rlay, lambda x:_get_meta(x, **kwargs))
+
+
+def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bounds', 'res', 'dtypes']):
+    d = dict()
+    for attn in att_l:        
+        d[attn] = getattr(ds, attn)
+    return d
+
 
 class RioPlotr(object):
     """grid plotting
