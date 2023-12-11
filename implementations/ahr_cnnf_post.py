@@ -4,7 +4,10 @@ Created on Dec. 11, 2023
 @author: cef
 '''
 import os
-from superd.cnnf.post_performance import gtif_to_xarray, build_confusion_xr, compute_inundation_performance
+from superd.cnnf.post_performance import (
+    gtif_to_xarray, build_confusion_xr, compute_inundation_performance,
+    hwm_performance
+    )
 
 from hp.basic import today_str, dstr
 from hp.hyd import get_wsh_rlay
@@ -55,31 +58,22 @@ def _01_convert_to_wsh():
         
     
     
-    
-
-def _02_convert_to_xr():
-    #===========================================================================
-    # params
-    #===========================================================================
     #WSH
-    fp_d =         {
+wsh_fp_d = {
             #'hyd_coarse':'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max._r32_b10_i65_0511.tif'
             'hyd_fine':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_r04_b4_i05_0508.tif',
             'cnnf':r'l:\10_IO\2307_super\deploy\1209_v04b\1209_v04b_pred_wsh_patch160_floor0.10_20231211_d536dffd6be7f0dd.tif',
             'rsmpF':r'l:\10_IO\2307_super\ahr\_01_convert_to_wsh\rsmpF_WSH_20231211.tif',
             'cgs':r'l:\10_IO\2307_super\ahr\_01_convert_to_wsh\cgs_WSH_20231211.tif',
             
-            }
-    
-    #===========================================================================
-    # convert WSE to WSH
-    #===========================================================================
-    
-    
+            }  
+
+def _02_convert_to_xr():
+ 
     
     out_dir = os.path.join(wrk_dir, '01_convert_to_xr')
     
-    return gtif_to_xarray(fp_d,
+    return gtif_to_xarray(wsh_fp_d,
                           aoi_fp=aoi_fp,
                           out_dir=out_dir)
     
@@ -102,6 +96,20 @@ def _04_inundation_performance(
     
     return compute_inundation_performance(nc_fp, out_dir=out_dir)
     
+def _05_hwm_performance(
+         hwm_fp = r'l:\10_IO\2307_super\ins\2207_dscale\obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'
+        ):
+    
+    out_dir = os.path.join(wrk_dir, '05_hwm_performance')
+    
+    log  = get_log_stream('hwm_performance')
+    
+    d=dict()
+    for tag, fp in wsh_fp_d.items():
+        d[tag] = hwm_performance(fp, hwm_fp, log=log, out_dir=out_dir)
+    
+    print(d)
+    return d
     
 
 if __name__=="__main__":
@@ -112,8 +120,9 @@ if __name__=="__main__":
     
     #_03_build_confusion()
     
-    _04_inundation_performance()
+    #_04_inundation_performance()
     
+    _05_hwm_performance()
     
     
     

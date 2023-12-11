@@ -13,6 +13,7 @@ import pandas as pd
 from osgeo import gdal # Import gdal before rasterio
 import rioxarray
 import xarray as xr
+import rasterio as rio
 
 import geopandas as gpd
 import fiona
@@ -26,7 +27,7 @@ from parameters import confusion_codes
 from hp.basic import today_str
 from hp.logr import get_log_stream
 
-from superd.fperf import get_confusion_cat, ValidateMask
+from superd.fperf import get_confusion_cat, ValidateMask, get_samp_errs
 #from superd.hyd._01asc_to_concat import _check_wsh_da
 
 
@@ -338,7 +339,90 @@ def compute_inundation_performance(nc_fp,
     return res_df
         
  
+def hwm_performance(wd_fp, hwm_fp, wd_key='water_depth',
+                    log=None, out_dir=None, ofp=None,
+                 ):
+    """compare a depth raster against some point values"""
+    #===========================================================================
+    # setup
+    #===========================================================================
+    start = datetime.now() 
+    #configure outputs
+    if ofp is  None:
+        if out_dir is None:
+            out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'hwm_performance')
+     
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+            
+        ofp = os.path.join(out_dir, f'hwm_performance_{today_str}.pkl')
         
+    if log is None: log  = get_log_stream('hwm_performance') #get the root logger
+    
+    log.info(f'on {os.path.basename(wd_fp)}')
+    #=======================================================================
+    # load points
+    #=======================================================================
+    #rlay_stats_d = get_meta(wd_fp)
+    
+    gdf = gpd.read_file(hwm_fp)
+    
+    assert len(gdf)>0, f'failed to load any HWM points from \n    {hwm_fp}\n    AOI too small?'
+    assert wd_key in gdf
+    
+    log.info(f'loaded {len(gdf)} HWMs from \n    {hwm_fp}') 
+    
+    #=======================================================================
+    # get values from raster
+    #=======================================================================
+    log.info(f'sampling {os.path.basename(wd_fp)} on points')
+    with rio.open(wd_fp, mode='r') as ds:
+        assert ds.profile['crs'].to_epsg()==gdf.crs.to_epsg()
+        
+        gdf = gdf.join(
+            _get_samples(gdf.geometry, ds, colName='pred').drop('geometry', axis=1)
+            ).drop('geometry', axis=1).set_geometry(gdf.geometry).rename(columns={wd_key:'true'})
+            
+    
+    # write
+    if gdf.isna().any().any():
+        log.warning(f'got some nulls')
+ 
+
+    gdf.to_file(ofp, crs=gdf.crs)
+    log.info(f'wrote samples to \n    {ofp}')
+    
+    #=======================================================================
+    # #calc errors
+    #=======================================================================
+    err_d = get_samp_errs(gdf, log=log)
+    
+ 
+    
+    #=======================================================================
+    # wrap
+    #=======================================================================
+    log.info('finished')
+    return err_d, fp_d, meta_d 
+
+
+def _get_samples(gser, rlay_ds, colName=None):
+    assert isinstance(gser, gpd.geoseries.GeoSeries)
+    assert np.all(gser.geom_type=='Point')
+    assert isinstance(rlay_ds, rio.io.DatasetReader), type(rlay_ds)
+    if colName is None: colName = os.path.basename(rlay_ds.name)
+    
+    #get points
+    coord_l = [(x,y) for x,y in zip(gser.x , gser.y)]
+    samp_l = [x[0] for x in rlay_ds.sample(coord_l)]
+ 
+    
+    #replace nulls
+    samp_ar = np.where(np.array([samp_l])==rlay_ds.nodata, np.nan, np.array([samp_l]))[0]
+    
+    
+    
+    return gpd.GeoDataFrame(data={colName:samp_ar}, index=gser.index, geometry=gser)     
  
         
          
