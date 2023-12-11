@@ -4,7 +4,7 @@ Created on Dec. 11, 2023
 @author: cef
 '''
 import os
-from superd.cnnf.post_performance import gtif_to_xarray
+from superd.cnnf.post_performance import gtif_to_xarray, build_confusion_xr, compute_inundation_performance
 
 from hp.basic import today_str, dstr
 from hp.hyd import get_wsh_rlay
@@ -39,7 +39,7 @@ def _01_convert_to_wsh():
     #===========================================================================
     log  = get_log_stream('_01_convert_to_wsh') #get the root logger
     d = dict()
-    out_dir = os.path.join(wrk_dir, '_01_convert_to_wsh')
+    out_dir = os.path.join(wrk_dir, '01_convert_to_wsh')
     if not os.path.exists(out_dir): os.makedirs(out_dir)
     
     #===========================================================================
@@ -77,11 +77,30 @@ def _02_convert_to_xr():
     
     
     
-    out_dir = os.path.join(wrk_dir, '_01_convert_to_xr')
+    out_dir = os.path.join(wrk_dir, '01_convert_to_xr')
     
     return gtif_to_xarray(fp_d,
                           aoi_fp=aoi_fp,
                           out_dir=out_dir)
+    
+
+def _03_build_confusion(
+        nc_fp = r'l:\10_IO\2307_super\ahr\01_convert_to_xr\wsh_concat_xr_20231211.nc'
+        ):
+    
+    
+    out_dir = os.path.join(wrk_dir, '03_build_confusion')
+    
+    return build_confusion_xr(nc_fp, out_dir=out_dir)
+    
+    
+def _04_compute_inundation_performance(
+        nc_fp = r'l:\10_IO\2307_super\ahr\03_build_confusion\confusion_xr_20231211.nc',
+        ):
+    
+    out_dir = os.path.join(wrk_dir, '04_compute_inundation_performance')
+    
+    return compute_inundation_performance(nc_fp, out_dir=out_dir)
     
     
 
@@ -89,4 +108,11 @@ if __name__=="__main__":
     
     #_01_convert_to_wsh()
     
-    _02_convert_to_xr()
+    #_02_convert_to_xr()
+    
+    _03_build_confusion()
+    
+    
+    
+    
+    
