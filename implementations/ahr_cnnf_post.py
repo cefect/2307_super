@@ -5,7 +5,7 @@ Created on Dec. 11, 2023
 '''
 import os
 from superd.cnnf.post_performance import (
-    gtif_to_xarray, build_confusion_xr, compute_inundation_performance,
+    gtif_to_xarray, build_confusion_xr, inundation_performance,
     hwm_performance
     )
 
@@ -91,12 +91,12 @@ def _03_build_confusion(
     
     
 def _04_inundation_performance(
-        nc_fp = r'l:\10_IO\2307_super\ahr\03_build_confusion\confusion_xr_20231211.nc',
+        nc_fp = r'l:\10_IO\2307_super\ahr\03_build_confusion\grids_xr_20231211.nc',
         ):
     
     out_dir = os.path.join(wrk_dir, '04_inundation_performance')
     
-    return compute_inundation_performance(nc_fp, out_dir=out_dir)
+    return inundation_performance(nc_fp, out_dir=out_dir)
     
 def _05_hwm_performance(
          hwm_fp = r'l:\10_IO\2307_super\ins\2207_dscale\obsv\NWR_ahr11_hwm_20220113b_fix_aoi13.geojson'
@@ -163,11 +163,11 @@ if __name__=="__main__":
     
     #_03_build_confusion()
     
-    #_04_inundation_performance()
+    _04_inundation_performance()
     
     #_05_hwm_performance()
     
-    _06_concat()
+    #_06_concat()
     
     
     

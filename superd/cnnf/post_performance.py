@@ -183,7 +183,7 @@ def build_confusion_xr(
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
             
-        ofp = os.path.join(out_dir, f'confusion_xr_{today_str}.nc')
+        ofp = os.path.join(out_dir, f'grids_xr_{today_str}.nc')
         
     if log is None: log  = get_log_stream('build_confusion_xr') #get the root logger
     
@@ -224,32 +224,38 @@ def build_confusion_xr(
             
             d[tag] = xr.DataArray(data=conf_ar, coords=gdaB_i.coords, name='confusion').astype(int)
             
-    #=======================================================================
-    # combine
-    #=======================================================================
-    #join datasets together on a new axis
-    confu_da = xr.concat(d.values(), pd.Index(d.keys(), name='tag', dtype=str))
-
-    #set compression
-    confu_da.encoding.update(encoding)
+        #=======================================================================
+        # combine
+        #=======================================================================
+        #join datasets together on a new axis
+        confu_da = xr.concat(d.values(), pd.Index(d.keys(), name='tag', dtype=str))
+    
+        #set compression
+        #confu_da.encoding.update(encoding)
+        
+        
+        #create dataset
+        ds = xr.concat([
+            confu_da.assign_coords({'grid_key':'CONFU'}), 
+            da.assign_coords({'grid_key':'WSH'})], dim='grid_key')
      
  
-     
+    
     #===========================================================================
     # write
     #===========================================================================
- 
+    
      
-    log.info(f'to_netcdf')
+    log.info(f'to_netcdf on \n    {list(ds.coords)}')
     #with Lock("rio", client=client) as lock:
-    confu_da.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
+    ds.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
      
-    log.info(f'merged all w/ {confu_da.shape} and wrote to \n    {ofp}')
+    log.info(f'merged all w/ {ds.shape} and wrote to \n    {ofp}')
     
     return ofp
         
         
-def compute_inundation_performance(nc_fp,
+def inundation_performance(nc_fp,true_tag='hyd_fine',
                 
                 out_dir=None,log=None, ofp=None,
                 # encoding = {'zlib': True, 'complevel': 5, 'dtype': 'int16'},
@@ -285,7 +291,8 @@ def compute_inundation_performance(nc_fp,
     # open data array
     #===========================================================================
     with xr.open_dataarray(nc_fp, engine='netcdf4', chunks={'x':-1, 'y':-1, 'tag':1}
-                                        ) as da:
+                                        ) as ds:
+        da = ds.loc[{'grid_key':'CONFU'}]
         log.info(f'loaded {da.dims}'+
              f'\n    coors: {list(da.coords)}'+
             # f'\n    data_vars: {list(da.data_vars)}'+
@@ -298,7 +305,7 @@ def compute_inundation_performance(nc_fp,
     #=======================================================================
     d =dict()
     for gkey0, gda_i in da.groupby('tag'):
- 
+        if gkey0==true_tag:continue
  
             
         try:
