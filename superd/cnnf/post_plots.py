@@ -8,8 +8,16 @@
 #===============================================================================
 # imports---------
 #===============================================================================
+import os
+from datetime import datetime
+import numpy as np
 
-from hp.rio_base import RioPlotr
+from hp.basic import get_dict_str, today_str
+from hp.logr import get_log_stream
+from hp.rio import RioPlotr
+from definitions import wrk_dir
+import matplotlib
+import matplotlib.pyplot as plt
 
 
 
@@ -30,12 +38,17 @@ class Plot_inun_peformance(RioPlotr):
     
  
     def plot(self,
-                      df, 
+                      metric_df,
+                      grid_ds, 
  
-                      output_format=None,
+                      output_format='svg',
+                      
+                      row_keys = ['rsmpF',  'cnnf', 'cgs','hyd_fine'],
                       rowLabels_d = None,
                       #pie_legend=True, 
                       box_fp=None, 
+                      
+                      log=None, out_dir=None, ofp=None,
  
                       fig_mat_kwargs=dict(figsize=None),
                       **kwargs):
@@ -51,41 +64,57 @@ class Plot_inun_peformance(RioPlotr):
             
         Pars
         --------
-        df: DataFrame
+        metric_df: DataFrame
+            inundation performance metrics
             rows: simulations/scenarios
-            cols:                
-                WSH: filepath to WSH raster
-                CONFU: filepath to confusion raster
-                metrics 
+            
+        grids_ds: xr.DataSource
+            grids w/ grid_key:
+                'WSH' and 'CONFU'
+ 
             
  
             
         box_fp: str
             optional filepath to add a black focus box to the plot
         """
+        #===========================================================================
+        # setup
+        #===========================================================================
+        start = datetime.now() 
+        #configure outputs
+        if ofp is  None:
+            if out_dir is None:
+                out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'post_plots')
+         
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+                
+            ofp = os.path.join(out_dir, f'plot_inun_perf_{today_str}.{output_format}')
+            
+        if log is None: log  = get_log_stream('plot_inun_perf') #get the root logger
+ 
+    
         #=======================================================================
         # defaults
         #=======================================================================
-        if output_format is None: output_format=self.output_format
-        log, tmp_dir, out_dir, ofp, resname = self._func_setup('inunPerf', ext='.'+output_format, **kwargs)
-        
-        log.info(f'on {str(fp_df.shape)}')
+   
+        log.info(f'on {str(metric_df.shape)}')
  
         font_size=matplotlib.rcParams['font.size']
-        if confusion_color_d is None:
-            confusion_color_d=self.confusion_color_d.copy()
-            
-        if rowLabels_d is None:
-            rowLabels_d=self.rowLabels_d
-        if rowLabels_d is None:
-            rowLabels_d=dict()
+        
         
         #get confusion style shortcuts
         cc_d = self.confusion_codes.copy()
-        cval_d = self.confusion_val_d.copy()
+        cval_d = self.confusion_val_d.copy()        
+        confusion_color_d=self.confusion_color_d.copy()
+            
+        if rowLabels_d is None:
+            rowLabels_d=dict()
         
+
         #spatial meta from dem for working with points
-        rmeta_d = get_meta(fp_df.iloc[0,0])
+        #rmeta_d = get_meta(fp_df.iloc[0,0])
          
         
         #bounding box
@@ -101,24 +130,19 @@ class Plot_inun_peformance(RioPlotr):
         # setup figure
         #=======================================================================
         if row_keys is None:
-            row_keys = fp_df.index.to_list()
+            row_keys = grid_ds['tag'].values.tolist()            
+        #true_tag= list(set(row_keys).difference(metric_df.index.values))[0]
+            
  
+        col_keys = ['WSH', 'CONFU']
             
-        assert set(row_keys).difference(fp_df.index.values)==set()
-            
-        if col_keys is None:
-            col_keys = fp_df.columns.to_list()
-            
-            
-        assert set(col_keys).difference(fp_df.columns.values)==set()
- 
- 
+  
         fig, ax_d = self.get_matrix_fig(row_keys, col_keys, logger=log, 
                                         set_ax_title=False, constrained_layout=True,
                                         **fig_mat_kwargs)
  
         #=======================================================================
-        # plot loop------
+        # plot grids------
         #=======================================================================
         focus_poly = None
         axImg_d = dict() #container for objects for colorbar
@@ -126,6 +150,7 @@ class Plot_inun_peformance(RioPlotr):
         for rowk, d0 in ax_d.items():
             for colk, ax in d0.items():                
                 gridk = colk.upper()
+                if not rowk in axImg_d: axImg_d[rowk]=dict()
                 #aname = nicknames_d2[rowk]
                 aname=rowLabels_d[rowk]                
                 log.debug(f'plot loop for {rowk}.{colk}.{gridk} ({aname})')
@@ -134,41 +159,16 @@ class Plot_inun_peformance(RioPlotr):
                 #===============================================================
                 # raster plot-----
                 #===============================================================
+                ar = grid_ds.loc[{'grid_key':gridk, 'tag':rowk}].values
+                if np.any(np.isnan(ar)):
+                    log.warning(f'got nulls on {rowk}.{colk}')
  
-                fp = fp_df.loc[rowk, colk]
                 
-                log.info(f'plotting {rowk} x {colk} ({gridk}): {os.path.basename(fp)}')
+                log.info(f'plotting {rowk} x {colk} ({gridk})')
                 
-                self._ax_raster_show(ax,fp, gridk=gridk)                    
+                axImg_d[rowk][colk] = self._ax_imshow(ax,ar, gridk=gridk)                    
  
-                    
-                #=======================================================
-                # asset samples (pie charts)-------
-                #=======================================================
-                """this made more sense when we were taking simulated grids as true""" 
-                #===============================================================
-                # if gridk =='WSH':# and 'pts_samples' in fp_lib[rowk]:
-                #     assert 'confuSamps' in fp_lib[rowk], f'{rowk} missing confuSamps'                                                        
-                #  
-                #     #load
-                #     gdf = self._load_gdf(rowk, samples_fp=fp_lib[rowk]['confuSamps'], rmeta_d=rmeta_d)
-                #      
-                #     #drop Trues 
-                #     gdf1 = gdf.loc[~gdf['confusion'].isin(['TN', 'TP']), :]
-                #      
-                #     #map colors                            
-                #     gdf1['conf_color'] = gdf1['confusion'].replace(cc_d)                            
-                #      
-                #     #plot
-                #     _= gdf1.plot(column='conf_color', ax=ax, cmap=confuGrid_cmap, norm=confuGrid_norm,
-                #              markersize=.2, marker='.', #alpha=0.8,
-                #              )
-                #      
-                #     #pie chart                            
-                #     # Add a subplot to the lower right quadrant 
-                #     self._add_pie(ax, rowk, total_ser = gdf['confusion'].value_counts(), legend=pie_legend)
-                #===============================================================
-                    
+ 
                 #===========================================================
                 # focus box--------
                 #===========================================================
@@ -190,32 +190,38 @@ class Plot_inun_peformance(RioPlotr):
                 ax.get_xaxis().set_ticks([])
                 ax.get_yaxis().set_ticks([])
                 
+        #=======================================================================
+        # add metrics
+        #=======================================================================
+        for rowk, d0 in ax_d.items():
+            for i, (colk, ax) in enumerate(d0.items()):  
+                gridk=colk
                 #add text
-                if gridk=='CONFU' and isinstance(metric_lib, dict):
-                    md = {k:v for k,v in metric_lib[rowk].items() if not k in cc_d.keys()}
-                    """
-                    md.keys()
-                    """
-                    #clean names
-                    for k,v in md.copy().items():
-                        if k in self.metric_labels:
-                            md.pop(k)
-                            md[self.metric_labels[k]]=v
-                        
+                if colk=='CONFU':
+                    metric_df.columns
+                    md = metric_df.loc[rowk, :].to_dict()
+                    
+                    md = {v:md[k] for k,v in self.metric_labels.items()}
  
  
  
-                    ax.text(0.98, 0.05, get_dict_str(md, num_format = '{:.3f}'), transform=ax.transAxes, 
+
+                elif colk=='WSH':
+                    self._add_scaleBar_northArrow(ax)
+                    
+                    da = grid_ds.loc[{'grid_key':gridk, 'tag':rowk}]
+                    
+                    md={'max':da.max().item(), 'mean':da.mean().item()}
+                    
+                else:
+                    raise KeyError(gridk)
+                
+                
+                ax.text(0.98, 0.05, get_dict_str(md, num_format = '{:.3f}'), transform=ax.transAxes, 
                             va='bottom', ha='right', fontsize=font_size, color='black',
                             bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.8),
                             )
-                else:
-                    self._add_scaleBar_northArrow(ax)
-                    
-                # colorbar
-                if not gridk in axImg_d:
-                    axImg_d[gridk] = [obj for obj in ax.get_children() if isinstance(obj, AxesImage)][0]
-                
+ 
  
         #=======================================================================
         # colorbar-------
@@ -230,7 +236,7 @@ class Plot_inun_peformance(RioPlotr):
                             
                 location, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
                 
-                cbar = fig.colorbar(axImg_d[gridk],
+                cbar = fig.colorbar(axImg_d[rowk][colk],
                                 #cax=cax, 
  
                                 orientation='horizontal',
@@ -242,7 +248,9 @@ class Plot_inun_peformance(RioPlotr):
                 
                 #relabel
                 if 'CONFU' == gridk: 
-                    cbar.set_ticks([(101-1)/2+1, 101.5, (111-102)/2+102, 111.5], 
+                    new_ticks = (cbar.get_ticks()[:-1] + cbar.get_ticks()[1:]) / 2
+                    cbar.set_ticks(new_ticks,
+                                    #[(101-1)/2+1, 101.5, (111-102)/2+102, 111.5], 
                                    labels = [{v:k for k,v in cc_d.items()}[k0] for k0 in cval_d.keys()] 
                                    )
                     
@@ -267,122 +275,13 @@ class Plot_inun_peformance(RioPlotr):
         #=======================================================================
         # wrap
         #=======================================================================
-        log.info('finished')
-        return self.output_fig(fig, ofp=ofp, logger=log, dpi=600)
+        
+        
+        fig.savefig(ofp, dpi = 300, format = output_format, transparent=True)
+        
+        log.info(f'finished and wrote figure to \n    {ofp}')
+                    
+        return ofp
     
-    def _load_gdf(self, dkey, samples_fp=None, rmeta_d=None, confusion_codes=None):
-        """convenienve to retrieve pre-loaded or load points"""
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if rmeta_d is None: rmeta_d=self.rmeta_d.copy()
-        
-        if samples_fp is None:
-            samples_fp = self.fp_lib[dkey]['pts_samples']
-            
-        if confusion_codes is None:
-            confusion_codes = self.confusion_codes.copy()
-        
-        #=======================================================================
-        # preloaded
-        #=======================================================================
-        if dkey in self.gdf_d:
-            gdf = self.gdf_d[dkey].copy()
-            
-        #=======================================================================
-        # load
-        #=======================================================================
-        else:        
-            gdf = gpd.read_file(samples_fp, bbox=rmeta_d['bounds']).rename(
-                columns={'confusion':'code'})
-            
-            gdf['confusion'] = gdf['code'].replace({v:k for k,v in confusion_codes.items()})
  
-        #=======================================================================
-        # check
-        #=======================================================================
-        assert gdf.crs == rmeta_d['crs']
-        
-        return gdf.drop(['code', 'geometry'], axis=1).set_geometry(gdf.geometry)
-
-    def _add_pie(self, ax, rowk,
-                 total_ser=None,
-                 font_size=None, 
-                 confusion_color_d=None,
-                 legend=True,
-                 center_loc=(0.91, 0.2),
-                 radius=0.075,
-                 ):
-         
-        """add a pie chart to the axis
-        
-        Parameters
-        --------
-        radius: float
-            radius of pie chart (relative ot the xdimensino)
-        """
-        #=======================================================================
-        # defaults
-        #=======================================================================
-        if confusion_color_d is None:
-            confusion_color_d=self.confusion_color_d.copy()
-        
-        if font_size is None:
-            font_size=matplotlib.rcParams['font.size']
-            
-        #=======================================================================
-        # #load data
-        #=======================================================================
-        if total_ser is None:
-            gdf = self._load_gdf(rowk)
-            total_ser = gdf['confusion'].value_counts() #.rename(nicknames_d2[rowk])
-        
-        colors_l = [confusion_color_d[k] for k in total_ser.index]
-        
-        #=======================================================================
-        # get center location
-        #=======================================================================
-        xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
-        
-        xdelta = xlim[1] - xlim[0]
-        # Calculate the center of the pie chart, relative to the axis
-        center_x = xlim[0] + center_loc[0] * (xdelta)
-        center_y = ylim[0] + center_loc[1] * (ylim[1] - ylim[0])
- 
-        # ax.set_clip_box(ax.bbox)
-        #=======================================================================
-        # add pie
-        #=======================================================================
-    
-        patches, texts = ax.pie(total_ser.values, colors=colors_l,
-            # autopct='%1.1f%%',
-            # pctdistance=1.2, #move percent labels out
-            shadow=False,
-            textprops=dict(size=font_size),
-            # labels=total_ser.index.values,
-            wedgeprops={"edgecolor":"black", 'linewidth':.5, 'linestyle':'solid', 'antialiased':True},
-            radius=xdelta * radius,
-            center=(center_x, center_y),
-            frame=True)
-        #=======================================================================
-        # reset lims
-        #=======================================================================
-        ax.set_ylim(ylim)
-        ax.set_xlim(xlim)
-        #=======================================================================
-        # legend
-        #=======================================================================
-        if legend:
-            labels = [f'{k}:{v*100:1.1f}\%' for k, v in (total_ser / total_ser.sum()).to_dict().items()]
-            ax.legend(patches, labels,
-                      # loc='upper left',
-                      loc='lower left',
-                      ncols=len(labels),
-                # bbox_to_anchor=(0, 0, 1.0, .1), 
-                mode=None,  # alpha=0.9,
-                frameon=True, framealpha=0.5, fancybox=False, alignment='left', columnspacing=0.5, handletextpad=0.2,
-                fontsize=font_size - 2)
-            
-        return  
-
+   

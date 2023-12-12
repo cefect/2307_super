@@ -77,12 +77,10 @@ elif env_type=='draft':
 #===============================================================================
 elif env_type=='present': 
  
-    env_kwargs=dict(
-        output_format='svg',add_stamp=True,add_subfigLabel=False,transparent=False
-        )   
+ 
  
     font_size=14
-    present=True
+ 
  
     matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
      
@@ -104,17 +102,46 @@ print('loaded matplotlib %s'%matplotlib.__version__)
 
 
 #===============================================================================
-# imports
+# imports-----------
 #===============================================================================
-
+import os, webbrowser
+import pandas as pd
+import xarray as xr
+idx = pd.IndexSlice
 
 from superd.cnnf.post_plots import Plot_inun_peformance
+from definitions import wrk_dir
+wrk_dir = os.path.join(wrk_dir, 'ahr')
 
+rowLabels_d = {
+    'cgs':'CostGrow', 'cnnf':'CNNFlood', 'hyd_fine':'Hydro. (s1)','rsmpF':'Resample'
+    }
 
+def plot_inun_perf(
+        metric_fp = r'l:\10_IO\2307_super\ahr\06_concat\performance_dxcol_04_20231211.pkl',
+        xr_fp= r'l:\10_IO\2307_super\ahr\03_build_confusion\grids_xr_20231211.nc',
+        ):
+    """inundation performance plot"""
+    
+    out_dir = os.path.join(wrk_dir, 'outs', 'post_plot')
+    #===========================================================================
+    # load  data
+    #===========================================================================
+    
+    metric_df = pd.read_pickle(metric_fp).xs('inun', level=0, axis=1)
+    
+    with xr.open_dataarray(xr_fp, engine='netcdf4') as ds:
+ 
+    
+    
+        ofp = Plot_inun_peformance().plot(metric_df, ds, output_format='svg',
+                                     out_dir=out_dir, rowLabels_d=rowLabels_d
+                                     )
+        
+    webbrowser.open(ofp)
 
 if __name__=="__main__":
-    Plot_inun_peformance().plot(
-        )
+    plot_inun_perf()
     
     
     

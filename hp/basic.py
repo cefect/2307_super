@@ -35,6 +35,34 @@ def view(df):
         
     webbrowser.open(f.name)
     
+
+def get_dict_str(d, #fancy formatting of a diciontary into one string (usefull for plotting)
+                 num_format = '{:.2f}',
+                 del_l = ['{', '}', '\'', ','],
+                 indent=0,
+                 #compact=True,
+                 ):
+    
+    #convert to strings
+    str_d = dict()
+    for k,raw in d.items():
+        if 'float' in type(raw).__name__:
+            str_d[k] = num_format.format(raw)
+        elif isinstance(raw, int):
+            str_d[k] = str(raw)
+        else:
+            str_d[k] = str(raw)
+            
+    #get pretty print
+    #txt = pprint.PrettyPrinter(indent=4).pformat(str_d, width=10)
+    txt = pprint.pformat(str_d, width=30, indent=indent, compact=True, sort_dicts =False)
+    
+    #remove some chars
+    for c in del_l: 
+        txt = txt.replace(c, '') #clear some unwanted characters..
+    
+    return txt
+    
 #===============================================================================
 # files/folders---------
 #===============================================================================
