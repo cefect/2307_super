@@ -22,6 +22,8 @@ import shapely.geometry as sgeo
 from pyproj.crs import CRS
 import geopandas as gpd
 
+import xarray as xr
+
 
 from hp.basic import get_dict_str, today_str
 from hp.logr import get_log_stream
@@ -262,7 +264,7 @@ class Plot_grids(RioPlotr):
         #=======================================================================
         
         
-        fig.savefig(ofp, dpi = 300, format = output_format, transparent=True)
+        fig.savefig(ofp,  format = output_format)
         
         log.info(f'finished and wrote figure to \n    {ofp}')
                     
@@ -427,10 +429,9 @@ class Plot_inun_peformance(RioPlotr):
             
             focus_bbox, crs=get_bbox_and_crs(box_fp)
             log.info(f'using aoi from \'{os.path.basename(box_fp)}\'')
-            #===================================================================
-            # rmeta_d = get_meta(fp_df.iloc[0,0])
-            # assert crs == rmeta_d['crs']
-            #===================================================================
+            
+            assert crs==CRS(grid_ds['spatial_ref'].attrs['crs_wkt'])
+ 
  
         #=======================================================================
         # setup figure
@@ -465,14 +466,25 @@ class Plot_inun_peformance(RioPlotr):
                 #===============================================================
                 # raster plot-----
                 #===============================================================
-                ar = grid_ds.loc[{'grid_key':gridk, 'tag':rowk}].values
-                if np.any(np.isnan(ar)):
-                    log.warning(f'got nulls on {rowk}.{colk}')
+                ds_i = grid_ds.loc[{'grid_key':gridk, 'tag':rowk}]
+                
+                #mask the values by the rid key
+                ds_i = xr.DataArray(data=self._mask_grid_by_key(ds_i, gridk), 
+                                    coords=ds_i.coords, dims=ds_i.dims, name=ds_i.name, 
+                                    attrs=ds_i.attrs)
+ 
  
                 
                 log.info(f'plotting {rowk} x {colk} ({gridk})')
                 
-                axImg_d[rowk][colk] = self._ax_imshow(ax,ar, gridk=gridk)                    
+                #extract style info for this grid
+                show_kwargs = self.grid_styles_lib[gridk]
+                
+                #spatially plot the dataset
+                axImg_d[rowk][colk] =ds_i.plot.imshow(ax=ax, interpolation='nearest', 
+                                          add_labels=False, add_colorbar=False, **show_kwargs)
+                
+                #axImg_d[rowk][colk] = self._ax_imshow(ax,ar, gridk=gridk)                    
  
  
                 #===========================================================
@@ -583,7 +595,7 @@ class Plot_inun_peformance(RioPlotr):
         #=======================================================================
         
         
-        fig.savefig(ofp, dpi = 300, format = output_format, transparent=True)
+        fig.savefig(ofp,   format = output_format)
         
         log.info(f'finished and wrote figure to \n    {ofp}')
                     

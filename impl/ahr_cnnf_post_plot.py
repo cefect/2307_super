@@ -10,42 +10,61 @@ Ahr case study CNNF  post plots
 #===============================================================================
 # PLOT ENV------
 #===============================================================================
+ 
+env_type = 'poster'
+cm = 1 / 2.54 
+
+
+           
+#===============================================================================
+# draft-------
+#===============================================================================
+if env_type=='draft':
+    output_format='png'
+    font_size=6
+    params_d = {
+        'savefig.dpi':300,
+        'text.usetex':False,
+        'savefig.edgecolor':'blue',
+        'savefig.transparent':False        
+        }
 
 #===============================================================================
-# setup matplotlib----------
+# journal style------
 #===============================================================================
-env_type = 'draft'
-cm = 1 / 2.54
-
-if env_type == 'journal': 
-    usetex = False
-elif env_type == 'draft':
-    usetex = False
-elif env_type == 'present':
-    usetex = False
-else:
-    raise KeyError(env_type)
-
+elif env_type=='journal':
+    output_format='png'
+    font_size=6
+    params_d = {
+        'savefig.dpi':600,
+        'text.usetex':True,        
+        }
+       
+#===============================================================================
+# presentation style---------
+#===============================================================================
+elif env_type=='present': 
  
- 
-  
-import matplotlib
-#matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
-matplotlib.set_loglevel("info") #reduce logging level
-import matplotlib.pyplot as plt
- 
-#set teh styles
-plt.style.use('default')
-font_size=6
-dpi=300
-present=False
-def set_doc_style():
- 
+    font_size=14
+    params_d = {
+        'figure.figsize':(22*cm,18*cm), #GFZ template slide size (w,h)
+        'text.usetex':False,
+        }
     
-    matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size': font_size})
-    matplotlib.rc('legend',fontsize=font_size)
-     
-    for k,v in {
+elif env_type=='poster':
+    output_format='png'
+    font_size=8
+    params_d = {
+        'savefig.dpi':600,
+        'text.usetex':False,        
+        }
+    
+            
+#===============================================================================
+# apply
+#===============================================================================
+#ammend customs to defaults
+params_d = {**{
         'axes.titlesize':font_size,
         'axes.labelsize':font_size,
         'xtick.labelsize':font_size,
@@ -54,49 +73,24 @@ def set_doc_style():
         'figure.autolayout':False,
         'figure.figsize':(18*cm,18*cm),#typical full-page textsize for Copernicus and wiley (with 4cm for caption)
         'legend.title_fontsize':'large',
-        'text.usetex':usetex,
-        }.items():
-            matplotlib.rcParams[k] = v
+        'text.usetex':False,
+        'savefig.dpi':300,
+        'legend.fontsize':font_size,
+        'savefig.transparent':True,
+        }, **params_d}
 
-#===============================================================================
-# journal style------
-#===============================================================================
-if env_type=='journal':
-    set_doc_style() 
-    dpi=1000
-           
-#===============================================================================
-# draft-------
-#===============================================================================
-elif env_type=='draft':
-    set_doc_style() 
+import matplotlib
+#matplotlib.use('Qt5Agg') #sets the backend (case sensitive)
+matplotlib.set_loglevel("info") #reduce logging level
+import matplotlib.pyplot as plt
  
-       
-#===============================================================================
-# presentation style---------
-#===============================================================================
-elif env_type=='present': 
- 
- 
- 
-    font_size=14
- 
- 
-    matplotlib.rc('font', **{'family' : 'sans-serif','sans-serif':'Tahoma','weight' : 'normal','size':font_size})
-     
-     
-    for k,v in {
-        'axes.titlesize':font_size+2,
-        'axes.labelsize':font_size+2,
-        'xtick.labelsize':font_size,
-        'ytick.labelsize':font_size,
-        'figure.titlesize':font_size+4,
-        'figure.autolayout':False,
-        'figure.figsize':(22*cm,18*cm), #GFZ template slide size (w,h)
-        'legend.title_fontsize':'large',
-        'text.usetex':usetex,
-        }.items():
-            matplotlib.rcParams[k] = v
+#set teh styles
+plt.style.use('default')
+
+
+
+matplotlib.rc('font', **{'family' : 'serif','weight' : 'normal','size': font_size})
+matplotlib.rcParams.update(params_d)
   
 print('loaded matplotlib %s'%matplotlib.__version__)
 
@@ -114,6 +108,8 @@ from impl.ahr_cnnf_post import wse_fp_d, inun_fp, dem_fp
 from definitions import wrk_dir
 wrk_dir = os.path.join(wrk_dir, 'ahr')
 
+aoi_box_fp=r'l:\10_IO\2307_super\ins\2207_dscale\aoi09t_zoom0308_4647.geojson'
+
 rowLabels_d = {
     'cgs':'CostGrow', 'cnnf':'CNNFlood', 'hyd_fine':'Hydro. (s1)','rsmpF':'Resample',
     'hyd_coarse':'Hydro. (s2)'
@@ -122,6 +118,7 @@ rowLabels_d = {
 def plot_inun_perf(
         metric_fp = r'l:\10_IO\2307_super\ahr\06_concat\performance_dxcol_04_20231211.pkl',
         xr_fp= r'l:\10_IO\2307_super\ahr\03_build_confusion\grids_xr_20231211.nc',
+ 
         ):
     """inundation performance plot"""
     
@@ -136,16 +133,20 @@ def plot_inun_perf(
  
     
     
-        ofp = Plot_inun_peformance().plot(metric_df, ds, output_format='svg',
-                                     out_dir=out_dir, rowLabels_d=rowLabels_d
+        ofp = Plot_inun_peformance().plot(metric_df, ds, 
+                                          output_format=output_format,
+                                     out_dir=out_dir, rowLabels_d=rowLabels_d,
+                                     box_fp=aoi_box_fp,
                                      )
         
     webbrowser.open(ofp)
     
+    plt.close('all')
+    
 
     
 def plot_grids(
-        aoi_fp=r'l:\10_IO\2307_super\ins\2207_dscale\aoi09t_zoom0308_4647.geojson'
+        aoi_fp=aoi_box_fp
         ):
     
     fp_d = {k:wse_fp_d[k] for k in ['hyd_coarse', 'rsmpF','cnnf', 'cgs', 'hyd_fine']}
@@ -156,12 +157,14 @@ def plot_grids(
         aoi_fp=aoi_fp, inun_fp=inun_fp, dem_fp=dem_fp,
         gridk='WSE', rowLabels_d=rowLabels_d, 
         out_dir = os.path.join(wrk_dir, 'outs', 'post_plot'),
+        output_format=output_format,
         )
     
+    plt.close('all')
     webbrowser.open(ofp)
 
 if __name__=="__main__":
-    #plot_inun_perf()
+    plot_inun_perf()
     
     plot_grids()
     
