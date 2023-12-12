@@ -114,7 +114,11 @@ def gtif_to_xarray(
          
         #add some meta
         da_i = da_i.assign_coords({'tag':scen})
-        da_i.attrs.update({'fn':os.path.basename(fp)})
+        #da_i.attrs.update({'filename':os.path.basename(fp)})
+        
+        #check
+        if np.any(np.isnan(da_i.values)):
+            raise ValueError(f'got some nulls on {scen}')
          
         #wrap
         da_d[i] = da_i.squeeze()
@@ -134,8 +138,12 @@ def gtif_to_xarray(
     da_m.encoding.update(encoding)
      
     #fill nulls
-    da_m = da_m.where(da_m!=0)
-     
+    #da_m = da_m.where(da_m!=0)
+    
+    """
+    da_m.values
+    """
+    da_m.rio.write_crs(crs, inplace=True)
  
      
     #===========================================================================
@@ -145,7 +153,7 @@ def gtif_to_xarray(
      
     log.info(f'to_netcdf')
     #with Lock("rio", client=client) as lock:
-    da_m.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
+    da_m.to_dataset().to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
      
     log.info(f'merged all w/ {da_m.shape} and wrote to \n    {ofp}')
      
@@ -192,14 +200,22 @@ def build_confusion_xr(
     #===========================================================================
     # open data array
     #===========================================================================
-    with xr.open_dataarray(nc_fp, engine='netcdf4', chunks={'x':-1, 'y':-1, 'tag':1}
-                                        ) as da:
+    
+    with xr.open_dataset(nc_fp, engine='netcdf4', mode='r') as ds:
+        """not sure why spatial_ref is opening as a data variable"""
+        da = ds['WSH']
+        
+        #add the spatial ref back onto the data array
+        da.rio.write_crs(ds['spatial_ref'].attrs['crs_wkt'], inplace=True)
+        
         log.info(f'loaded {da.dims}'+
              f'\n    coors: {list(da.coords)}'+
             # f'\n    data_vars: {list(da.data_vars)}'+
              f'\n    crs:{da.rio.crs}'
              )
-        
+        """
+        da.values
+        """
         #=======================================================================
         # convert to boolean
         #=======================================================================
@@ -244,10 +260,16 @@ def build_confusion_xr(
     #===========================================================================
     # write
     #===========================================================================
-    
+    for gridk in ['CONFU', 'WSH']:
+        for tag, gda in ds.loc[{'grid_key':gridk}].groupby('tag',squeeze=False):
+            if np.any(np.isnan(gda.values)):
+                log.error(f'got nulls on {gridk}.{tag}')
      
     log.info(f'to_netcdf on \n    {list(ds.coords)}')
     #with Lock("rio", client=client) as lock:
+    
+ 
+    
     ds.to_netcdf(ofp, mode ='w', format ='netcdf4', engine='netcdf4', compute=True)
      
     log.info(f'merged all w/ {ds.shape} and wrote to \n    {ofp}')

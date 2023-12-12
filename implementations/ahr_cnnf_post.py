@@ -65,34 +65,27 @@ wsh_fp_d = {
             #'hyd_coarse':'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max._r32_b10_i65_0511.tif'
             'hyd_fine':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_r04_b4_i05_0508.tif',
             'cnnf':r'l:\10_IO\2307_super\deploy\1209_v04b\1209_v04b_pred_wsh_patch160_floor0.10_20231211_d536dffd6be7f0dd.tif',
-            'rsmpF':r'l:\10_IO\2307_super\ahr\_01_convert_to_wsh\rsmpF_WSH_20231211.tif',
-            'cgs':r'l:\10_IO\2307_super\ahr\_01_convert_to_wsh\cgs_WSH_20231211.tif',
-            
-            }  
+            'rsmpF': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\rsmpF_WSH_20231211.tif', 
+            'cgs': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\cgs_WSH_20231211.tif'}
 
-def _02_convert_to_xr():
  
-    
-    out_dir = os.path.join(wrk_dir, '01_convert_to_xr')
+
+def _02_convert_to_xr():    
+    out_dir = os.path.join(wrk_dir, '02_convert_to_xr')
     
     return gtif_to_xarray(wsh_fp_d,
                           aoi_fp=aoi_fp,
                           out_dir=out_dir)
     
 
-def _03_build_confusion(
-        nc_fp = r'l:\10_IO\2307_super\ahr\01_convert_to_xr\wsh_concat_xr_20231211.nc'
-        ):
-    
+def _03_build_confusion(nc_fp):
     
     out_dir = os.path.join(wrk_dir, '03_build_confusion')
     
     return build_confusion_xr(nc_fp, out_dir=out_dir)
     
     
-def _04_inundation_performance(
-        nc_fp = r'l:\10_IO\2307_super\ahr\03_build_confusion\grids_xr_20231211.nc',
-        ):
+def _04_inundation_performance(nc_fp):
     
     out_dir = os.path.join(wrk_dir, '04_inundation_performance')
     
@@ -161,13 +154,15 @@ if __name__=="__main__":
     
     #_02_convert_to_xr()
     
-    #_03_build_confusion()
+    #_03_build_confusion(r'l:\10_IO\2307_super\ahr\02_convert_to_xr\wsh_concat_xr_20231211.nc')
     
-    _04_inundation_performance()
+    #_04_inundation_performance(r'l:\10_IO\2307_super\ahr\03_build_confusion\grids_xr_20231211.nc')
     
     #_05_hwm_performance()
     
-    #_06_concat()
+    _06_concat(
+    inun_fp=r'l:\10_IO\2307_super\ahr\04_inundation_performance\inundation_performance_20231211.pkl'
+    )
     
     
     
