@@ -69,6 +69,10 @@ def _get_meta(ds, att_l=['crs', 'height', 'width', 'transform', 'nodata', 'bound
         d[attn] = getattr(ds, attn)
     return d
 
+def get_bbox(rlay_obj):
+    bounds = get_ds_attr(rlay_obj, 'bounds')
+    return sgeo.box(*bounds)
+
 
 class RioPlotr(object):
     """grid plotting

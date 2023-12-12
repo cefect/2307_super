@@ -109,12 +109,14 @@ import pandas as pd
 import xarray as xr
 idx = pd.IndexSlice
 
-from superd.cnnf.post_plots import Plot_inun_peformance
+from superd.cnnf.post_plots import Plot_inun_peformance, Plot_grids
+from impl.ahr_cnnf_post import wse_fp_d, inun_fp, dem_fp
 from definitions import wrk_dir
 wrk_dir = os.path.join(wrk_dir, 'ahr')
 
 rowLabels_d = {
-    'cgs':'CostGrow', 'cnnf':'CNNFlood', 'hyd_fine':'Hydro. (s1)','rsmpF':'Resample'
+    'cgs':'CostGrow', 'cnnf':'CNNFlood', 'hyd_fine':'Hydro. (s1)','rsmpF':'Resample',
+    'hyd_coarse':'Hydro. (s2)'
     }
 
 def plot_inun_perf(
@@ -139,9 +141,29 @@ def plot_inun_perf(
                                      )
         
     webbrowser.open(ofp)
+    
+
+    
+def plot_grids(
+        aoi_fp=r'l:\10_IO\2307_super\ins\2207_dscale\aoi09t_zoom0308_4647.geojson'
+        ):
+    
+    fp_d = {k:wse_fp_d[k] for k in ['hyd_coarse', 'rsmpF','cnnf', 'cgs', 'hyd_fine']}
+    
+    
+    
+    ofp = Plot_grids().plot(fp_d,
+        aoi_fp=aoi_fp, inun_fp=inun_fp, dem_fp=dem_fp,
+        gridk='WSE', rowLabels_d=rowLabels_d, 
+        out_dir = os.path.join(wrk_dir, 'outs', 'post_plot'),
+        )
+    
+    webbrowser.open(ofp)
 
 if __name__=="__main__":
-    plot_inun_perf()
+    #plot_inun_perf()
+    
+    plot_grids()
     
     
     

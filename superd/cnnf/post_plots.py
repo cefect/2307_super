@@ -8,18 +8,321 @@
 #===============================================================================
 # imports---------
 #===============================================================================
-import os
+import os, copy
 from datetime import datetime
 import numpy as np
+import pandas as pd
+
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.image import AxesImage
+
+import fiona
+import shapely.geometry as sgeo
+from pyproj.crs import CRS
+import geopandas as gpd
+
 
 from hp.basic import get_dict_str, today_str
 from hp.logr import get_log_stream
-from hp.rio import RioPlotr
+from hp.rio import RioPlotr, get_bbox, get_meta
 from definitions import wrk_dir
-import matplotlib
-import matplotlib.pyplot as plt
 
 
+
+def get_bbox_and_crs(fp):
+    with fiona.open(fp, "r") as source:
+        bbox = sgeo.box(*source.bounds) 
+        crs = CRS(source.crs['init'])
+        
+    return bbox, crs
+
+
+class Plot_grids(RioPlotr):
+    """worker for plotting raw raster  results"""
+ 
+    def plot(self,
+                          fp_d,
+                          gridk='WSE', #for formatting by grid type
+                          mod_keys=None,
+                          
+                          dem_fp=None,
+                          inun_fp=None,
+                          aoi_fp=None,
+                          
+                          output_format='svg',rowLabels_d=None,
+                          colorBar_bottom_height=0.15,
+ 
+                          vmin=None, vmax=None,
+                          show_kwargs=None,
+                          fig_mat_kwargs=dict(add_subfigLabel=True),
+                          arrow_kwargs_lib=dict(),
+                          inun_kwargs = dict(facecolor='none', 
+                                             edgecolor='black', 
+                                             linewidth=0.75, 
+                                             linestyle='dashed'),
+                          log=None,out_dir=None, ofp=None,):
+        """matrix plot of raster results. nice for showing a small region of multiple sims
+        
+        Pars
+        --------
+        fp_lib: dict
+            filepaths of grids for plotting
+                {modk:{gridk ('dem', 'true_inun', ...):fp}}
+        gridk: str, default: 'pred_wse'
+            which grid to plot
+            
+        add_subfigLabel: bool
+            True: add journal sub-figure labelling (a0)
+            False: use the fancy labels
+            
+        show_kwargs: dict
+            over-ride default grid show kwargs (should be a lvl2 dict?)
+            
+        """
+        
+        #===========================================================================
+        # setup
+        #===========================================================================
+        start = datetime.now() 
+        #configure outputs
+        if ofp is  None:
+            if out_dir is None:
+                out_dir = os.path.join(wrk_dir, 'outs', 'cnnf', 'post_plots')
+         
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir)
+                
+            ofp = os.path.join(out_dir, f'plot_grids_{gridk}_{today_str}.{output_format}')
+            
+        if log is None: log  = get_log_stream('plot_inun_perf') #get the root logger
+        
+        #=======================================================================
+        # defaults
+        #=======================================================================
+ 
+ 
+        
+        #list of model values
+        if mod_keys is None:
+            mod_keys = list(fp_d.keys())
+            #mod_keys = ['WSE2', 'Basic', 'SimpleFilter', 'Schumann14', 'CostGrow','WSE1']            
+        assert set(mod_keys).difference(fp_d.keys())==set()
+        
+        #model fancy labels
+        if rowLabels_d is None:
+            rowLabels_d=self.rowLabels_d
+            
+        if rowLabels_d is None:
+            rowLabels_d = dict()
+            
+        #add any missing
+        for k in mod_keys:
+            if not k in rowLabels_d:
+                rowLabels_d[k] = k
+            
+        #bounding box
+        rmeta_d = get_meta(dem_fp)  #spatial meta from dem for working with points
+        
+        if aoi_fp is None:
+            bbox, crs=get_bbox(dem_fp), self.crs
+        else:            
+            bbox, crs=get_bbox_and_crs(aoi_fp)
+            log.info(f'using aoi from \'{os.path.basename(aoi_fp)}\'')
+            
+        
+        
+               
+        assert crs.to_epsg()==rmeta_d['crs'].to_epsg()
+            
+        log.info(f'plotting {len(fp_d)} on {mod_keys}')
+        #=======================================================================
+        # setup figure
+        #=======================================================================        
+        ax_d, mat_df, row_keys, col_keys, fig = self._get_fig_mat_models(                                            
+                                            mod_keys,
+                                            logger=log, ncols=3,
+                                            constrained_layout=False, 
+                                            **fig_mat_kwargs)
+ 
+        
+        #=======================================================================
+        # plot loop------
+        #=======================================================================        
+        meta_lib, axImg_d=dict(), dict()
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():                
+                #===============================================================
+                # setup
+                #===============================================================
+                modk = mat_df.loc[rowk, colk]
+                if modk=='nan': 
+                    ax.axis('off')
+                    continue              
+                log.info(f'plotting {rowk}x{colk} ({modk})\n    {fp_d[modk]}')
+                
+                #===============================================================
+                # plot it
+                #===============================================================
+                # DEM raster 
+                self._ax_raster_show(ax,  dem_fp, bbox=bbox,gridk='hillshade')
+                
+                # focal raster
+                fp = fp_d[modk]
+                self._ax_raster_show(ax,  fp, bbox=bbox,gridk=gridk, alpha=0.9, show_kwargs=show_kwargs,
+                                     vmin=vmin, vmax=vmax)
+                
+                #log.debug(get_data_stats(fp))
+                #inundation                
+                gdf = gpd.read_file(inun_fp)
+                assert gdf.geometry.crs==crs, f'crs mismatch: {gdf.geometry.crs}\n    {inun_fp}'
+ 
+                #boundary 
+                gdf.clip(bbox.bounds).plot(ax=ax,**inun_kwargs)
+ 
+                #===============================================================
+                # label
+                #=============================================================== 
+                ax.text(0.95, 0.05, 
+                            rowLabels_d[modk], 
+                            transform=ax.transAxes, va='bottom', ha='right',
+                            size=matplotlib.rcParams['axes.titlesize'],
+                            bbox=dict(boxstyle="round,pad=0.3", fc="white", lw=0.0,alpha=0.5 ),
+                            )
+                
+                #===============================================================
+                # #scale bar
+                #===============================================================
+                self._add_scaleBar_northArrow(ax)
+                    
+                #===============================================================
+                # wrap
+                #===============================================================
+ 
+                # hide labels
+                ax.get_xaxis().set_ticks([])
+                ax.get_yaxis().set_ticks([])
+                
+        #=======================================================================
+        # add annotation arrows------
+        #=======================================================================
+        """
+        plt.show()
+        """
+        if len(arrow_kwargs_lib)>0:
+            for k, arrow_kwargs in arrow_kwargs_lib.items():
+                self._add_arrow(ax_d, logger=log, **arrow_kwargs)
+        #=======================================================================
+        # colorbar-------
+        #=======================================================================
+        #grab the image object for making the colorbar
+        ax = ax_d[row_keys[0]][col_keys[0]] #use the first axis
+        l= [obj for obj in ax.get_children() if isinstance(obj, AxesImage)]
+        axImg_d = dict(zip(['dem', gridk], l))
+                
+        log.debug(f'adding colorbar')
+        
+        #get parameters
+        _, fmt, label, spacing = self._get_colorbar_pars_by_key(gridk)
+        shared_kwargs = dict(orientation='horizontal',
+                             extend='both', #pointed ends
+                             shrink=0.8,
+                             ticklocation='top',
+                             )
+        
+        #add the new axis
+        fig.subplots_adjust(bottom=colorBar_bottom_height, 
+                            wspace=0.05, top=0.999, hspace=0.05, left=0.05, right=0.95) 
+        
+        cax = fig.add_axes((0.1, 0.01, 0.8, 0.03)) #left, bottom, width, height
+        
+        #add the bar
+        cbar = fig.colorbar(axImg_d[gridk],cax=cax,label=label,format=fmt, spacing=spacing,
+                                 **shared_kwargs)
+        
+        
+        
+        #=======================================================================
+        # post
+        #=======================================================================
+        """nothing in the legend for some reason...."""
+        for rowk, d0 in ax_d.items():
+            for colk, ax in d0.items():
+                 
+                if rowk==row_keys[0]:
+                    if colk==col_keys[-1]:
+                        dummy_patch = matplotlib.patches.Patch(label='observed', **inun_kwargs)
+                        ax.legend(handles=[dummy_patch], loc='upper right')
+                        
+
+ 
+                        
+        #=======================================================================
+        # wrap
+        #=======================================================================
+        
+        
+        fig.savefig(ofp, dpi = 300, format = output_format, transparent=True)
+        
+        log.info(f'finished and wrote figure to \n    {ofp}')
+                    
+        return ofp
+    
+    def _get_fig_mat_models(self, mod_keys, 
+                            ncols=1,  
+                            total_fig_width=None, 
+                            figsize=None, 
+                            constrained_layout=True, 
+                            **kwargs):
+        #=======================================================================
+        # defaults
+        #=======================================================================
+ 
+        if total_fig_width is  None: total_fig_width = matplotlib.rcParams['figure.figsize'][0]
+        #=======================================================================
+        # #reshape into a frame
+        #=======================================================================
+        #bad division
+        mod_keys2 = copy.copy(mod_keys)
+ 
+        if len(mod_keys) % ncols != 0:
+            for i in range(ncols - len(mod_keys) % ncols):
+                mod_keys2.append(np.nan)
+            
+ 
+        
+        mat_df = pd.DataFrame(np.array(mod_keys2).reshape(-1, ncols))
+        mat_df.columns = [f'c{e}' for e in mat_df.columns]
+        mat_df.index = [f'r{e}' for e in mat_df.index]
+        row_keys = mat_df.index.tolist()
+        
+        col_keys = mat_df.columns.tolist()
+        
+        #figure size
+        if figsize is None:
+            figsize_scaler = (total_fig_width / ncols)
+        else:
+            #assert ncols is None
+            assert total_fig_width is None
+            figsize_scaler = None
+            
+        fig, ax_d = self.get_matrix_fig(row_keys, col_keys, 
+            set_ax_title=False, 
+            figsize=figsize, 
+            constrained_layout=constrained_layout, 
+            sharex='all', 
+            sharey='all', 
+            #add_subfigLabel=True, 
+            figsize_scaler=figsize_scaler, 
+            **kwargs)
+        
+        return ax_d, mat_df, row_keys, col_keys, fig
+        
+ 
+        
+
+
+ 
 
 
 
@@ -114,7 +417,7 @@ class Plot_inun_peformance(RioPlotr):
         
 
         #spatial meta from dem for working with points
-        #rmeta_d = get_meta(fp_df.iloc[0,0])
+        #
          
         
         #bounding box
@@ -124,7 +427,10 @@ class Plot_inun_peformance(RioPlotr):
             
             focus_bbox, crs=get_bbox_and_crs(box_fp)
             log.info(f'using aoi from \'{os.path.basename(box_fp)}\'')
-            assert crs == rmeta_d['crs']
+            #===================================================================
+            # rmeta_d = get_meta(fp_df.iloc[0,0])
+            # assert crs == rmeta_d['crs']
+            #===================================================================
  
         #=======================================================================
         # setup figure
@@ -282,6 +588,8 @@ class Plot_inun_peformance(RioPlotr):
         log.info(f'finished and wrote figure to \n    {ofp}')
                     
         return ofp
+    
+    
     
  
    

@@ -21,24 +21,31 @@ wrk_dir = os.path.join(wrk_dir, 'ahr')
 
 aoi_fp=r'l:\10_IO\2307_super\ins\2207_dscale\aoi13_r32_small_0428.geojson'
 dem_fp = r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\dem1_clip.tif'
+inun_fp = r'l:\10_IO\2307_super\ins\2207_dscale\obsv\RLP_LfU_HQ_extrm_WCS_20230324_ahr_4647_aoi13.geojson'
+
+#WSH
+wsh_fp_d = {
+            #'hyd_coarse':'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max._r32_b10_i65_0511.tif'
+            'hyd_fine':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_r04_b4_i05_0508.tif',
+            'cnnf':r'l:\10_IO\2307_super\deploy\1209_v04b\1209_v04b_pred_wsh_patch160_floor0.10_20231211_d536dffd6be7f0dd.tif',
+            'rsmpF': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\rsmpF_WSH_20231211.tif', 
+            'cgs': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\cgs_WSH_20231211.tif'}
+
+wse_fp_d = {
+    'hyd_fine':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_WSE_clip_r04_b4_i05_0508.tif',
+    'hyd_coarse':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_WSE_r32_b10_i65_0511.tif',
+    'cnnf':r'l:\10_IO\2307_super\deploy\1209_v04b\1209_v04b_pred_wsh_patch160_floor0.10_20231211_d536dffd6be7f0dd_WSE.tif',
+    'rsmp':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_rsmp.tif',
+    'rsmpF':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_rsmpF.tif',
+    'cgs':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_cgs.tif',
+    }
 
 def _01_convert_to_wsh():
     
     #===========================================================================
     # params
     #===========================================================================
-    fp_d =         {
-            #'hyd_coarse':'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max._r32_b10_i65_0511.tif'
-            
-            #has some negative depths... does this make sense?
-            #'rsmp':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_rsmp.tif',
-            
-            #resample w/ filter
-            'rsmpF':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_rsmpF.tif',
-            'cgs':r'l:\10_IO\2307_super\ins\2207_dscale\fdsc\ahr_aoi13_0506_r2_1002_cgs.tif',
-            
-            }
-    
+    fp_d = {k:wse_fp_d[k] for k in ['cgs', 'rsmpF']}
     #===========================================================================
     # setup
     #===========================================================================
@@ -60,15 +67,7 @@ def _01_convert_to_wsh():
         
     
     
-    #WSH
-wsh_fp_d = {
-            #'hyd_coarse':'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max._r32_b10_i65_0511.tif'
-            'hyd_fine':r'l:\10_IO\2307_super\ins\2207_dscale\hyd_ahr_aoi13\wd_max_r04_b4_i05_0508.tif',
-            'cnnf':r'l:\10_IO\2307_super\deploy\1209_v04b\1209_v04b_pred_wsh_patch160_floor0.10_20231211_d536dffd6be7f0dd.tif',
-            'rsmpF': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\rsmpF_WSH_20231211.tif', 
-            'cgs': 'l:\\10_IO\\2307_super\\ahr\\01_convert_to_wsh\\cgs_WSH_20231211.tif'}
 
- 
 
 def _02_convert_to_xr():    
     out_dir = os.path.join(wrk_dir, '02_convert_to_xr')
